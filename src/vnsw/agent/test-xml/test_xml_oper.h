@@ -22,6 +22,7 @@ public:
     virtual void ToString(std::string *str);
 
 private:
+    uint16_t vxlan_id_;
 };
 
 class AgentUtXmlVm : public AgentUtXmlConfig {
@@ -198,6 +199,21 @@ private:
     const boost::uuids::uuid id_;
 };
 
+class AgentUtXmlVxlanValidate : public AgentUtXmlValidationNode {
+public:
+    AgentUtXmlVxlanValidate(const std::string &name,
+                            const boost::uuids::uuid &id,
+                            const pugi::xml_node &node);
+    virtual ~AgentUtXmlVxlanValidate();
+
+    virtual bool ReadXml();
+    virtual bool Validate();
+    virtual const std::string ToString();
+private:
+    const boost::uuids::uuid id_;
+    uint16_t vxlan_id_;
+};
+
 class AgentUtXmlVmInterfaceValidate : public AgentUtXmlValidationNode {
 public:
     AgentUtXmlVmInterfaceValidate(const std::string &name,
@@ -260,6 +276,7 @@ public:
     virtual bool ReadXml();
     virtual bool Validate();
     virtual const std::string ToString();
+    virtual uint32_t wait_count() const;
 private:
     uint16_t nh_id_;
     std::string sip_;
@@ -268,6 +285,9 @@ private:
     uint16_t sport_;
     uint16_t dport_;
     uint16_t proto_id_;
+    std::string svn_;
+    std::string dvn_;
+    std::string action_;
 };
 
 #endif //vnsw_agent_test_xml_test_xml_oper_h

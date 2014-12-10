@@ -55,6 +55,11 @@ Layer2RouteKey::AllocRouteEntry(VrfEntry *vrf, bool is_multicast) const
     return static_cast<AgentRoute *>(entry);
 }
 
+Layer2RouteEntry *Layer2AgentRouteTable::FindRoute(const MacAddress &mac) {
+    Layer2RouteKey key(agent()->local_vm_peer(), vrf_entry()->GetName(), mac, 0);
+    return static_cast<Layer2RouteEntry *>(FindActiveEntry(&key));
+}
+
 Layer2RouteEntry *Layer2AgentRouteTable::FindRoute(const Agent *agent,
                                                    const string &vrf_name,
                                                    const MacAddress &mac)
@@ -66,8 +71,8 @@ Layer2RouteEntry *Layer2AgentRouteTable::FindRoute(const Agent *agent,
     Layer2RouteKey key(agent->local_vm_peer(), vrf_name, mac, 0);
     Layer2RouteEntry *route =
         static_cast<Layer2RouteEntry *>
-        (static_cast<Layer2AgentRouteTable *>(vrf->
-                                              GetLayer2RouteTable())->FindActiveEntry(&key));
+        (static_cast<Layer2AgentRouteTable *>
+         (vrf->GetLayer2RouteTable())->FindActiveEntry(&key));
     return route;
 }
 

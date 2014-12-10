@@ -82,6 +82,7 @@ public:
     static Layer2RouteEntry *FindRoute(const Agent *agent,
                                        const string &vrf_name,
                                        const MacAddress &mac);
+    Layer2RouteEntry *FindRoute(const MacAddress &mac);
 
 private:
     DBTableWalker::WalkId walkid_;

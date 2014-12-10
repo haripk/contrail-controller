@@ -244,9 +244,9 @@ struct MatchPolicy {
 };
 
 struct FlowData {
-    FlowData() : 
-        source_vn(""), dest_vn(""), source_sg_id_l(), dest_sg_id_l(),
-        flow_source_vrf(VrfEntry::kInvalidIndex),
+    FlowData() :
+        smac(), dmac(), source_vn(""), dest_vn(""), source_sg_id_l(),
+        dest_sg_id_l(), flow_source_vrf(VrfEntry::kInvalidIndex),
         flow_dest_vrf(VrfEntry::kInvalidIndex), match_p(), vn_entry(NULL),
         intf_entry(NULL), in_vm_entry(NULL), out_vm_entry(NULL),
         vrf(VrfEntry::kInvalidIndex),
@@ -255,6 +255,8 @@ struct FlowData {
         nh_state_(NULL), source_plen(0), dest_plen(0), drop_reason(0),
         vrf_assign_evaluated(false), pending_recompute(false) {}
 
+    MacAddress smac;
+    MacAddress dmac;
     std::string source_vn;
     std::string dest_vn;
     SecurityGroupList source_sg_id_l;
@@ -326,7 +328,8 @@ class FlowEntry {
         IMPLICIT_DENY,
         DEFAULT_GW_ICMP_OR_DNS, /* DNS/ICMP pkt to/from default gateway */
         LINKLOCAL_FLOW, /* No policy applied for linklocal flow */
-        MULTICAST_FLOW /* No policy applied for multicast flow */
+        MULTICAST_FLOW, /* No policy applied for multicast flow */
+        NON_IP_FLOW,    /* Flow due to Layer2 forwarding */
     };
 
     static const uint32_t kInvalidFlowHandle=0xFFFFFFFF;
@@ -373,6 +376,7 @@ class FlowEntry {
     const FlowData &data() const { return data_;}
     const uuid &flow_uuid() const { return flow_uuid_; }
     const uuid &egress_uuid() const { return egress_uuid_; }
+    bool l3_flow() const { return l3_flow_; }
     uint32_t flow_handle() const { return flow_handle_; }
     void set_flow_handle(uint32_t flow_handle, const FlowTable* table);
     FlowEntry * reverse_flow_entry() { return reverse_flow_entry_.get(); }
@@ -424,9 +428,11 @@ class FlowEntry {
     void SetAclFlowSandeshData(const AclDBEntry *acl,
             FlowSandeshData &fe_sandesh_data) const;
     void InitFwdFlow(const PktFlowInfo *info, const PktInfo *pkt,
-            const PktControlInfo *ctrl, const PktControlInfo *rev_ctrl);
-    void InitRevFlow(const PktFlowInfo *info,
-            const PktControlInfo *ctrl, const PktControlInfo *rev_ctrl);
+                     const PktControlInfo *ctrl,
+                     const PktControlInfo *rev_ctrl);
+    void InitRevFlow(const PktFlowInfo *info, const PktInfo *pkt,
+                     const PktControlInfo *ctrl,
+                     const PktControlInfo *rev_ctrl);
     void InitAuditFlow(uint32_t flow_idx);
     void set_source_sg_id_l(SecurityGroupList &sg_l) { data_.source_sg_id_l = sg_l; }
     void set_dest_sg_id_l(SecurityGroupList &sg_l) { data_.dest_sg_id_l = sg_l; }
@@ -447,6 +453,8 @@ class FlowEntry {
     }
     uint16_t short_flow_reason() const { return short_flow_reason_; }
     bool set_pending_recompute(bool value);
+    const MacAddress &smac() const { return data_.smac; }
+    const MacAddress &dmac() const { return data_.dmac; }
 private:
     friend class FlowTable;
     friend class FlowStatsCollector;
@@ -455,8 +463,8 @@ private:
     bool SetRpfNH(const AgentRoute *rt);
     bool InitFlowCmn(const PktFlowInfo *info, const PktControlInfo *ctrl,
                      const PktControlInfo *rev_ctrl);
-    void GetSourceRouteInfo(const InetUnicastRouteEntry *rt);
-    void GetDestRouteInfo(const InetUnicastRouteEntry *rt);
+    void GetSourceRouteInfo(const AgentRoute *rt);
+    void GetDestRouteInfo(const AgentRoute *rt);
 
     FlowKey key_;
     FlowData data_;
@@ -464,6 +472,7 @@ private:
     uuid flow_uuid_;
     //egress_uuid is used only during flow-export and applicable only for local-flows
     uuid egress_uuid_;
+    bool l3_flow_;
     uint32_t flow_handle_;
     FlowEntryPtr reverse_flow_entry_;
     FlowTableKSyncEntry *ksync_entry_;
@@ -630,6 +639,7 @@ public:
     }
 
     DBTableBase::ListenerId nh_listener_id();
+    AgentRoute *GetL2Route(const VrfEntry *entry, const MacAddress &mac);
     AgentRoute *GetUcRoute(const VrfEntry *entry, const IpAddress &addr);
     static const SecurityGroupList &default_sg_list() {return default_sg_list_;}
     bool ValidFlowMove(const FlowEntry *new_flow,
@@ -689,7 +699,9 @@ private:
     void DeleteVmFlowInfo(FlowEntry *fe);
     void DeleteVmFlowInfo(FlowEntry *fe, const VmEntry *vm);
     void DeleteIntfFlowInfo(FlowEntry *fe);
-    void DeleteRouteFlowInfoInternal(FlowEntry *fe, RouteFlowKey &key);
+    void DeleteInetRouteFlowInfoInternal(FlowEntry *fe, RouteFlowKey &key);
+    void DeleteInetRouteFlowInfo(FlowEntry *fe);
+    void DeleteL2RouteFlowInfo(FlowEntry *fe);
     void DeleteRouteFlowInfo(FlowEntry *fe);
     void DeleteAclFlowInfo(const AclDBEntry *acl, FlowEntry* flow, const AclEntryIDList &id_list);
 
@@ -704,7 +716,9 @@ private:
     void AddVnFlowInfo(FlowEntry *fe);
     void AddVmFlowInfo(FlowEntry *fe);
     void AddVmFlowInfo(FlowEntry *fe, const VmEntry *vm);
-    void AddRouteFlowInfoInternal(FlowEntry *fe, RouteFlowKey &key);
+    void AddInetRouteFlowInfoInternal(FlowEntry *fe, RouteFlowKey &key);
+    void AddInetRouteFlowInfo(FlowEntry *fe);
+    void AddL2RouteFlowInfo(FlowEntry *fe);
     void AddRouteFlowInfo(FlowEntry *fe);
 
     void DeleteAclFlows(const AclDBEntry *acl);

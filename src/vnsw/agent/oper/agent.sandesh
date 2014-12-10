@@ -497,6 +497,9 @@ struct FlowSandeshData {
     25: string implicit_deny;
     26: optional string short_flow;
     27: optional u64 setup_time_utc;
+    28: bool l3_flow;
+    29: string smac;
+    30: string dmac;
 }
 
 struct VxLanSandeshData {
