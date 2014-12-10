@@ -87,6 +87,11 @@ bool VxLanTable::Delete(DBEntry *entry, const DBRequest *req) {
     return true;
 }
 
+VxLanId *VxLanTable::Find(uint32_t vxlan_id) {
+    VxLanIdKey key(vxlan_id);
+    return static_cast<VxLanId *>(FindActiveEntry(&key));
+}
+
 void VxLanTable::OnZeroRefcount(AgentDBEntry *e) {
     const VxLanId *vxlan_id = static_cast<const VxLanId *>(e);
     VxLanId::Delete(vxlan_id->vxlan_id());
