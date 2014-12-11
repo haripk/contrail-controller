@@ -58,7 +58,8 @@ VrfEntry::VrfEntry(const string &name, uint32_t flags) :
         name_(name), id_(kInvalidIndex), flags_(flags),
         walkid_(DBTableWalker::kInvalidWalkerId), deleter_(NULL),
         rt_table_db_(), delete_timeout_timer_(NULL),
-        table_label_(MplsTable::kInvalidLabel){
+        table_label_(MplsTable::kInvalidLabel),
+        vxlan_id_(VxLanTable::kInvalidvxlan_id) {
 }
 
 VrfEntry::~VrfEntry() {
@@ -79,6 +80,41 @@ bool VrfEntry::IsLess(const DBEntry &rhs) const {
 
 string VrfEntry::ToString() const {
     return "VRF";
+}
+
+bool VrfEntry::UpdateVxlanId(Agent *agent, uint32_t new_vxlan_id) {
+    bool ret = false;
+    if (new_vxlan_id == vxlan_id_) {
+        return ret;
+    }
+
+    const InetInterface *vhost = static_cast<const InetInterface *>
+        (agent->vhost_interface());
+    const Interface *intf = vhost->xconnect();
+
+    Layer2AgentRouteTable *table = static_cast<Layer2AgentRouteTable *>
+        (rt_table_db_[Agent::LAYER2]);
+    if (vxlan_id_ != VxLanTable::kInvalidvxlan_id) {
+        table->Delete(agent->local_vm_peer(), GetName(), vxlan_id_,
+                      agent->vrrp_mac());
+        if (intf) {
+            table->Delete(agent->local_vm_peer(), GetName(), vxlan_id_,
+                          intf->mac());
+        }
+    }
+
+    if (new_vxlan_id != VxLanTable::kInvalidvxlan_id) {
+        table->AddLayer2ReceiveRoute(agent->local_vm_peer(), this, new_vxlan_id,
+                                     agent->vrrp_mac(), vn_->GetName());
+        if (intf) {
+            table->AddLayer2ReceiveRoute(agent->local_vm_peer(), this,
+                                         new_vxlan_id, intf->mac(),
+                                         vn_->GetName());
+        }
+    }
+
+    vxlan_id_ = new_vxlan_id;
+    return ret;
 }
 
 void VrfEntry::PostAdd() {
@@ -121,6 +157,8 @@ void VrfEntry::PostAdd() {
         MplsTable::CreateTableLabel(table->agent(), table_label(), name_,
                                     false);
     }
+
+    UpdateVxlanId(table->agent(), vxlan_id_);
 }
 
 bool VrfEntry::CanDelete(DBRequest *req) {
@@ -300,11 +338,15 @@ DBEntry *VrfTable::Add(const DBRequest *req) {
     name_tree_.insert( VrfNamePair(key->name_, vrf));
 
     vrf->vn_.reset(agent()->vn_table()->Find(data->vn_uuid_));
+    if (vrf->vn_.get()) {
+        vrf->vxlan_id_ = vrf->vn_->GetVxLanId();
+    }
     vrf->SendObjectLog(AgentLogEvent::ADD);
     return vrf;
 }
 
 bool VrfTable::OnChange(DBEntry *entry, const DBRequest *req) {
+    bool ret = false;
     VrfEntry *vrf = static_cast<VrfEntry *>(entry);
     VrfData *data = static_cast<VrfData *>(req->data.get());
     vrf->set_flags(data->flags_);
@@ -312,13 +354,20 @@ bool VrfTable::OnChange(DBEntry *entry, const DBRequest *req) {
     VnEntry *vn = agent()->vn_table()->Find(data->vn_uuid_);
     if (vn != vrf->vn_.get()) {
         vrf->vn_.reset(vn);
-        return true;
+        ret = true;
     }
-    return false;
+
+    uint32_t vxlan_id = VxLanTable::kInvalidvxlan_id;
+    if (vn) {
+        vxlan_id = vn->GetVxLanId();
+    }
+    vrf->UpdateVxlanId(agent(), vxlan_id);
+    return ret;
 }
 
 bool VrfTable::Delete(DBEntry *entry, const DBRequest *req) {
     VrfEntry *vrf = static_cast<VrfEntry *>(entry);
+    vrf->UpdateVxlanId(agent(), VxLanTable::kInvalidvxlan_id);
     vrf->vn_.reset(NULL);
     if (vrf->table_label() != MplsTable::kInvalidLabel) {
         MplsLabel::Delete(agent(), vrf->table_label());

@@ -348,6 +348,21 @@ private:
     DISALLOW_COPY_AND_ASSIGN(HostRoute);
 };
 
+class L2ReceiveRoute : public AgentRouteData {
+public:
+    L2ReceiveRoute(const std::string &dest_vn_name) :
+        AgentRouteData(false), dest_vn_name_(dest_vn_name) {
+    }
+    virtual ~L2ReceiveRoute() { }
+    virtual bool AddChangePath(Agent *agent, AgentPath *path,
+                               const AgentRoute *rt);
+    virtual std::string ToString() const {return "l2-receive";}
+
+private:
+    std::string dest_vn_name_;
+    DISALLOW_COPY_AND_ASSIGN(L2ReceiveRoute);
+};
+
 class VlanNhRoute : public AgentRouteData {
 public:
     VlanNhRoute(const VmInterfaceKey &intf, uint16_t tag, uint32_t label,

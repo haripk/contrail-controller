@@ -322,6 +322,23 @@ bool HostRoute::AddChangePath(Agent *agent, AgentPath *path,
     return ret;
 } 
 
+bool L2ReceiveRoute::AddChangePath(Agent *agent, AgentPath *path,
+                                   const AgentRoute *rt) {
+    bool ret = false;
+
+    path->set_proxy_arp(false);
+    path->set_unresolved(false);
+
+    if (path->dest_vn_name() != dest_vn_name_) {
+        path->set_dest_vn_name(dest_vn_name_);
+        ret = true;
+    }
+    if (path->ChangeNH(agent, agent->nexthop_table()->l2_receive_nh()) == true)
+        ret = true;
+
+    return ret;
+} 
+
 bool InetInterfaceRoute::AddChangePath(Agent *agent, AgentPath *path,
                                        const AgentRoute *rt) {
     bool ret = false;

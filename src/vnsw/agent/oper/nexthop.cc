@@ -1020,6 +1020,24 @@ void DiscardNH::Create( ) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// L2ReceiveNH routines
+/////////////////////////////////////////////////////////////////////////////
+NextHop *L2ReceiveNHKey::AllocEntry() const {
+    return new L2ReceiveNH();
+}
+
+bool L2ReceiveNH::CanAdd() const {
+    return true;
+}
+
+void L2ReceiveNH::Create( ) {
+    DBRequest req(DBRequest::DB_ENTRY_ADD_CHANGE);
+    req.key.reset(new L2ReceiveNHKey());
+    req.data.reset(new L2ReceiveNHData());
+    NextHopTable::GetInstance()->Process(req);
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // VLAN NH routines
 /////////////////////////////////////////////////////////////////////////////
 bool VlanNH::CanAdd() const {

@@ -43,6 +43,8 @@ AgentUtXmlValidationNode *CreateValidateNode(const string &type,
         return new AgentUtXmlAclValidate(name, node);
     if (type == "pkt-parse")
         return new AgentUtXmlPktParseValidate(name, node);
+    if (type == "fdb")
+        return new AgentUtXmlL2RouteValidate(name, node);
 }
 
 AgentUtXmlNode *CreateNode(const string &type, const string &name,
@@ -64,6 +66,8 @@ AgentUtXmlNode *CreateNode(const string &type, const string &name,
     if (type == "virtual-machine-interface-routing-instance" ||
         type == "vmi-vrf")
         return new AgentUtXmlVmiVrf(name, id, node, test_case);
+    if (type == "fdb" || type == "l2-route")
+        return new AgentUtXmlL2Route(name, id, node, test_case);
 }
 
 void AgentUtXmlOperInit(AgentUtXmlTest *test) {
@@ -913,4 +917,113 @@ uint32_t AgentUtXmlFlowValidate::wait_count() const {
     } else {
         return AgentUtXmlValidationNode::wait_count();
     }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// AgentUtXmlL2Route routines
+/////////////////////////////////////////////////////////////////////////////
+AgentUtXmlL2Route::AgentUtXmlL2Route(const string &name, const uuid &id,
+                                     const xml_node &node,
+                                     AgentUtXmlTestCase *test_case) :
+    AgentUtXmlNode(name, node, false, test_case) {
+}
+
+AgentUtXmlL2Route::~AgentUtXmlL2Route() {
+}
+
+
+bool AgentUtXmlL2Route::ReadXml() {
+    if (GetStringAttribute(node(), "mac", &mac_) == false) {
+        cout << "Attribute \"mac\" not specified. Skipping" << endl;
+        return false;
+    }
+
+    if (GetStringAttribute(node(), "vrf", &vrf_) == false) {
+        cout << "Attribute \"vrf_\" not specified. Skipping" << endl;
+        return false;
+    }
+
+    GetStringAttribute(node(), "vn", &vn_);
+    GetUintAttribute(node(), "vxlan_id", &vxlan_id_);
+    GetStringAttribute(node(), "tunnel-dest", &tunnel_dest_);
+    GetStringAttribute(node(), "tunnel-type", &tunnel_type_);
+
+    return true;
+}
+
+bool AgentUtXmlL2Route::ToXml(xml_node *parent) {
+    assert(0);
+    return true;
+}
+
+void AgentUtXmlL2Route::ToString(string *str) {
+    *str = "L2-Route";
+    return;
+}
+
+string AgentUtXmlL2Route::NodeType() {
+    return "FDB";
+}
+
+bool AgentUtXmlL2Route::Run() {
+    Layer2AgentRouteTable::AddRemoteVmRouteReq(NULL, vrf_,
+                                               MacAddress::FromString(mac_),
+                                               Ip4Address::from_string(ip_),
+                                               vxlan_id_, 48, NULL);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// AgentUtXmlL2RouteValidate routines
+/////////////////////////////////////////////////////////////////////////////
+AgentUtXmlL2RouteValidate::AgentUtXmlL2RouteValidate(const string &name,
+                                                     const xml_node &node) :
+    AgentUtXmlValidationNode(name, node) {
+}
+
+AgentUtXmlL2RouteValidate::~AgentUtXmlL2RouteValidate() {
+}
+
+bool AgentUtXmlL2RouteValidate::ReadXml() {
+    if (GetStringAttribute(node(), "mac", &mac_) == false) {
+        cout << "Attribute \"mac\" not specified. Skipping" << endl;
+        return false;
+    }
+
+    if (GetStringAttribute(node(), "vrf", &vrf_) == false) {
+        cout << "Attribute \"vrf_\" not specified. Skipping" << endl;
+        return false;
+    }
+
+    if (GetStringAttribute(node(), "vn", &vn_) == false) {
+        cout << "Attribute \"vn\" not specified. Skipping" << endl;
+        return false;
+    }
+
+    GetUintAttribute(node(), "vxlan_id", &vxlan_id_);
+    GetStringAttribute(node(), "tunnel-dest", &tunnel_dest_);
+    GetStringAttribute(node(), "tunnel-type", &tunnel_type_);
+    GetUintAttribute(node(), "intf", &intf_uuid_);
+
+    return true;
+}
+
+bool AgentUtXmlL2RouteValidate::Validate() {
+    Agent *agent = Agent::GetInstance();
+    Layer2RouteEntry *rt =
+        Layer2AgentRouteTable::FindRoute(agent, vrf_,
+                                         MacAddress::FromString(mac_));
+    if (present() == false)
+        return (rt == NULL);
+
+    if (rt == NULL)
+        return false;
+
+    if (vn_ != "" && vn_ != rt->dest_vn_name())
+        return false;
+
+    return true;
+}
+
+const string AgentUtXmlL2RouteValidate::ToString() {
+    return ("FDB <"  + name() + ">");
 }
