@@ -70,6 +70,10 @@ public:
                                       const MacAddress &mac,
                                       const string &interface,
                                       bool policy);
+    void AddLayer2ReceiveRoute(const Peer *peer, VrfEntry *vrf,
+                               uint32_t vxlan_id,
+                               const MacAddress &mac,
+                               const std::string &vn_name);
     static void DeleteReq(const Peer *peer, const string &vrf_name,
                           const MacAddress &mac,
                           uint32_t ethernet_tag,

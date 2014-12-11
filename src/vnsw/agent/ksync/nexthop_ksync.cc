@@ -105,6 +105,10 @@ NHKSyncEntry::NHKSyncEntry(NHKSyncObject *obj, const NextHop *nh) :
         break;
     }
 
+    case NextHop::L2_RECEIVE: {
+        break;
+    }
+
     case NextHop::RESOLVE: {
         InterfaceKSyncObject *interface_object =
             ksync_obj_->ksync()->interface_ksync_obj();
@@ -192,6 +196,10 @@ bool NHKSyncEntry::IsLess(const KSyncEntry &rhs) const {
     }
 
     if (type_ == NextHop::DISCARD) {
+        return false;
+    }
+
+    if (type_ == NextHop::L2_RECEIVE) {
         return false;
     }
 
@@ -335,6 +343,10 @@ std::string NHKSyncEntry::ToString() const {
         s << "Discard";
         break;
     }
+    case NextHop::L2_RECEIVE: {
+        s << "L2-Receive ";
+        break;
+    }
     case NextHop::RECEIVE: {
         s << "Receive ";
         break;
@@ -443,6 +455,11 @@ bool NHKSyncEntry::Sync(DBEntry *e) {
     }
 
     case NextHop::DISCARD: {
+        ret = false;
+        break;
+    }
+
+    case NextHop::L2_RECEIVE: {
         ret = false;
         break;
     }
@@ -661,6 +678,10 @@ int NHKSyncEntry::Encode(sandesh_op::type op, char *buf, int buf_len) {
             flags |= NH_FLAG_TUNNEL_UDP;
             break;
 
+        case NextHop::L2_RECEIVE:
+            encoder.set_nhr_type(NH_L2_RCV);
+            break;
+
         case NextHop::DISCARD:
             encoder.set_nhr_type(NH_DISCARD);
             break;
@@ -764,6 +785,10 @@ void NHKSyncEntry::FillObjectLog(sandesh_op::type op, KSyncNhInfo &info)
     }
 
     switch(type_) {
+    case NextHop::L2_RECEIVE: {
+        info.set_type("L2-RECEIVE");
+        break;
+    }
     case NextHop::DISCARD: {
         info.set_type("DISCARD");
         break;
@@ -902,6 +927,11 @@ KSyncEntry *NHKSyncEntry::UnresolvedReference() {
         if (!if_ksync->IsResolved()) {
             entry = if_ksync;
         }
+        break;
+    }
+
+    case NextHop::L2_RECEIVE: {
+        assert(if_ksync == NULL);
         break;
     }
 
