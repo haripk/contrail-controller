@@ -256,6 +256,8 @@ protected:
     void RemovePath(AgentPath *path);
     void InsertPath(const AgentPath *path);
     void DeletePathInternal(AgentPath *path);
+    bool ProcessPath(Agent *agent, DBTablePartition *part, AgentPath *path,
+                     AgentRouteData *data);
 
 private:
     friend class AgentRouteTable;

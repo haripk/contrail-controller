@@ -140,3 +140,60 @@ DBState *BgpPeer::GetRouteExportState(DBTablePartBase *partition,
 Agent *BgpPeer::agent() const {
     return route_walker_.get()->agent();
 }
+
+bool BgpPeer::RouteUpdate(AgentRoute *rt, AgentPath *path) const {
+    Layer2RouteEntry *l2_rt = dynamic_cast<Layer2RouteEntry *>(rt);
+    if (l2_rt == NULL)
+        return false;
+
+#if 0
+    Agent *agent = route_walker_.get()->agent();
+    VrfEntry *vrf = l2_rt->vrf();
+    InetUnicastRouteTable *table = vrf->GetInet4UnicastRouteTable();
+
+    InterfaceNH *intf_nh = dynamic_cast<InterfaceNH *>(path->nexthop(agent));
+    TunnelNH *tunnel_nh = dynamic_cast<TunnelNH *>(path->nexthop(agent));
+    if (intf_nh == NULL && tunnel_nh == NULL)
+        return false;
+
+    if (tunnel_nh != NULL) {
+        ControllerVmRoute *data =
+            ControllerVmRoute::MakeControllerVmRoute(this,
+                               agent()->fabric_vrf_name(), agent()->router_id(),
+                               path->vrf_name(), path->server_ip(),
+                               path->tunnel_bmap(), path->label(),
+                               path->dest_vn_name(), path->sg_list(),
+                               path->path_preference());
+        table->AddRemoteVmRouteReq(this, vrf->GetName(), stitched_ip4, 32,
+                                   data);
+    }
+
+    if (intf_nh != NULL) {
+        ControllerLocalVmRoute *local_vm_route =
+            new ControllerLocalVmRoute(intf_key, label,
+                                       VxLanTable::kInvalidvxlan_id, false,
+                                       item->entry.virtual_network,
+                                       InterfaceNHFlags::INET4,
+                                       item->entry.security_group_list.security_group,
+                                       path_preference,
+                                       unicast_sequence_number(),
+                                       this);
+        rt_table->AddLocalVmRouteReq(bgp_peer, vrf_name,
+                                     prefix_addr, prefix_len,
+                                     static_cast<LocalVmRoute *>(local_vm_route));
+    }
+
+    InetUnicastRouteEntry *inet_rt = NULL;
+    vrf->GetInet4UnicastRouteTable()->Find(path->enet->ip
+    return true;
+#endif
+    return false;
+}
+
+bool BgpPeer::RouteDelete(AgentRoute *rt, AgentPath *path) const {
+    Layer2RouteEntry *l2_rt = dynamic_cast<Layer2RouteEntry *>(rt);
+    if (l2_rt == NULL)
+        return false;
+
+    return false;
+}

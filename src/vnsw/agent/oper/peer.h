@@ -64,6 +64,16 @@ public:
 
     const std::string &GetName() const { return name_; }
     const Type GetType() const { return type_; }
+    // Process add/change of a path in the route using this peer.
+    // EVPN uses this to stich MAC address to Inet route
+    virtual bool RouteUpdate(AgentRoute *rt, AgentPath *path) const {
+        return false;
+    }
+    // Process deletion of a path in the route using this peer.
+    // EVPN uses this to remote MAC address stitching from Inet route
+    virtual bool RouteDelete(AgentRoute *rt, AgentPath *path) const {
+        return false;
+    }
 
 private:
     Type type_;
@@ -114,6 +124,8 @@ public:
 
     uint32_t setup_time() const {return setup_time_;}
     Agent *agent() const;
+    virtual bool RouteUpdate(AgentRoute *rt, AgentPath *path) const;
+    virtual bool RouteDelete(AgentRoute *rt, AgentPath *path) const;
 
 private: 
     Ip4Address server_ip_;
