@@ -45,6 +45,7 @@ AgentXmppChannel::AgentXmppChannel(Agent *agent,
                                    uint8_t xs_idx)
     : channel_(NULL), xmpp_server_(xmpp_server), label_range_(label_range),
       xs_idx_(xs_idx), agent_(agent), unicast_sequence_number_(0) {
+    evpn_bgp_peer_id_.reset();
     bgp_peer_id_.reset();
 }
 
@@ -71,6 +72,7 @@ std::string AgentXmppChannel::GetBgpPeerName() const {
 
 void AgentXmppChannel::CreateBgpPeer() {
     assert(bgp_peer_id_.get() == NULL);
+    assert(evpn_bgp_peer_id_.get() == NULL);
     DBTableBase::ListenerId id =
         agent_->vrf_table()->Register(boost::bind(&VrfExport::Notify,
                                        this, _1, _2));
@@ -78,7 +80,9 @@ void AgentXmppChannel::CreateBgpPeer() {
     const string &addr = agent_->controller_ifmap_xmpp_server(xs_idx_);
     Ip4Address ip = Ip4Address::from_string(addr.c_str(), ec);
     assert(ec.value() == 0);
-    bgp_peer_id_.reset(new BgpPeer(ip, addr, this, id));
+    bgp_peer_id_.reset(new BgpPeer(ip, addr, this, id, Peer::BGP_PEER));
+    evpn_bgp_peer_id_.reset(new BgpPeer(ip, addr, this, id,
+                                        Peer::EVPN_BGP_PEER));
 }
 
 void AgentXmppChannel::DeCommissionBgpPeer() {
@@ -90,8 +94,10 @@ void AgentXmppChannel::DeCommissionBgpPeer() {
 
     // Add the peer to global decommisioned list
     agent_->controller()->AddToDecommissionedPeerList(bgp_peer_id_);
+    agent_->controller()->AddToDecommissionedPeerList(evpn_bgp_peer_id_);
     //Reset channel BGP peer id
     bgp_peer_id_.reset();
+    evpn_bgp_peer_id_.reset();
 }
 
 
@@ -169,8 +175,9 @@ void AgentXmppChannel::ReceiveEvpnUpdate(XmlPugi *pugi) {
                                           ethernet_tag,
                              ControllerPeerPath::kInvalidPeerIdentifier);
                 } else {
-                    rt_table->DeleteReq(bgp_peer_id(), vrf_name, mac, ethernet_tag,
-                                        new ControllerVmRoute(bgp_peer_id()));
+                    rt_table->DeleteReq(evpn_bgp_peer_id(), vrf_name,
+                                        mac, ethernet_tag,
+                                        new ControllerVmRoute(evpn_bgp_peer_id()));
                 }
             }
         }
@@ -675,14 +682,15 @@ void AgentXmppChannel::AddEvpnRoute(std::string vrf_name,
         // Currently SG not supported for l2 route.
         SecurityGroupList sg;
         ControllerVmRoute *data =
-            ControllerVmRoute::MakeControllerVmRoute(bgp_peer_id(),
+            ControllerVmRoute::MakeControllerVmRoute(evpn_bgp_peer_id(),
                                                     agent_->fabric_vrf_name(),
                                                     agent_->router_id(),
                                                     vrf_name, addr.to_v4(),
                                                     encap, label,
                                                     item->entry.virtual_network,
                                                     sg, PathPreference());
-        rt_table->AddRemoteVmRouteReq(bgp_peer_id(), vrf_name, mac, prefix_addr,
+        rt_table->AddRemoteVmRouteReq(evpn_bgp_peer_id(), vrf_name,
+                                      mac, prefix_addr,
                                       item->entry.nlri.ethernet_tag,
                                       prefix_len, data);
         return;
@@ -725,7 +733,7 @@ void AgentXmppChannel::AddEvpnRoute(std::string vrf_name,
                                     intf_nh->GetIfUuid(), "");
             SecurityGroupList sg_list;
             PathPreference path_preference;
-            BgpPeer *bgp_peer = bgp_peer_id();
+            BgpPeer *bgp_peer = evpn_bgp_peer_id();
             if (encap == TunnelType::VxlanType()) {
                 local_vm_route =
                     new ControllerLocalVmRoute(vm_intf_key,
@@ -1125,6 +1133,7 @@ void AgentXmppChannel::MulticastPeerDown(AgentXmppChannel *old_mcast_builder,
  */
 bool AgentXmppChannel::IsBgpPeerActive(AgentXmppChannel *peer) {
     if (peer && peer->GetXmppChannel() && peer->bgp_peer_id() &&
+        peer->evpn_bgp_peer_id() &&
         (peer->GetXmppChannel()->GetPeerState() == xmps::READY)) {
         return true;
     }
@@ -1288,6 +1297,7 @@ void AgentXmppChannel::HandleAgentXmppClientChannelEvent(AgentXmppChannel *peer,
         //when message is dropped at ControllerSendMulticastRoute by checking
         //peer against mcast builder. This can be refined though.
         peer->bgp_peer_id()->PeerNotifyRoutes();
+        peer->evpn_bgp_peer_id()->PeerNotifyRoutes();
 
         //Cleanup stales if any
         // If its headless agent mode clean stale for config and unicast
@@ -1306,6 +1316,7 @@ void AgentXmppChannel::HandleAgentXmppClientChannelEvent(AgentXmppChannel *peer,
             return;
 
         BgpPeer *decommissioned_peer_id = peer->bgp_peer_id();
+        BgpPeer *decommissioned_evpn_peer_id = peer->evpn_bgp_peer_id();
         // Add BgpPeer to global decommissioned list
         peer->DeCommissionBgpPeer();
 
@@ -1315,6 +1326,7 @@ void AgentXmppChannel::HandleAgentXmppClientChannelEvent(AgentXmppChannel *peer,
         // Remove all unicast peer paths(in non headless mode) and cancel stale
         // timer in headless
         AgentXmppChannel::UnicastPeerDown(peer, decommissioned_peer_id);
+        AgentXmppChannel::UnicastPeerDown(peer, decommissioned_evpn_peer_id);
 
         // evaluate peer change for config and multicast
         AgentXmppChannel *agent_mcast_builder =
