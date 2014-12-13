@@ -191,6 +191,9 @@ public:
     bool ChangeCompositeNH(Agent *agent, CompositeNHKey *nh);
     // Get nexthop-ip address to be used for path
     const Ip4Address *NexthopIp(Agent *agent) const;
+    const MacAddress mac() const;
+    void set_mac(const MacAddress &mac);
+
 private:
     const Peer *peer_;
     // Nexthop for route. Not used for gateway routes
@@ -201,10 +204,15 @@ private:
     uint32_t vxlan_id_;
     // destination vn-name used in policy lookups
     std::string dest_vn_name_;
+
+    // sync_ flag says that any change in this path sholud result in re-sync
+    // of all paths in the route. This can be used in cases where some
+    // properties are inherited from one path to other
     bool sync_;
 
     // Proxy-Arp enabled for the route?
     bool proxy_arp_;
+
     // When force_policy_ is not set,
     //     Use nexthop with policy if policy enabled on interface
     //     Use nexthop without policy if policy is disabled on interface
@@ -244,6 +252,14 @@ private:
     //helping in deciding the priority during live migration and
     //allowed address pair
     IpAddress subnet_gw_ip_;
+
+    // Stitched MAC for the route. Can be built from any of the IP to ARP 
+    // binding features such as EVPN routes, Config etc...
+    MacAddress mac_;
+
+    // IP Address for the EVPN route
+    Ip4Address stitched_ip4_;
+    Ip6Address stitched_ip6_;
     DISALLOW_COPY_AND_ASSIGN(AgentPath);
 };
 
