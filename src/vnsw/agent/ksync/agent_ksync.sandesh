@@ -25,6 +25,7 @@ struct KSyncRouteInfo {
     3: string operation;
     4: optional u32 nh_idx;
     5: optional u32 label;  
+    6: string mac;
 }
 
 traceobject sandesh KSyncRoute {

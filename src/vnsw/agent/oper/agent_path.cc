@@ -35,8 +35,7 @@ AgentPath::AgentPath(const Peer *peer, AgentRoute *rt):
     tunnel_type_(TunnelType::ComputeType(TunnelType::AllType())),
     vrf_name_(""), gw_ip_(0), unresolved_(true), is_stale_(false),
     is_subnet_discard_(false), dependant_rt_(rt), path_preference_(),
-    local_ecmp_mpls_label_(rt), composite_nh_key_(NULL), subnet_gw_ip_(),
-    mac_() {
+    local_ecmp_mpls_label_(rt), composite_nh_key_(NULL), subnet_gw_ip_() {
 }
 
 AgentPath::~AgentPath() {
@@ -300,14 +299,6 @@ bool AgentPath::IsLess(const AgentPath &r_path) const {
     return peer()->IsLess(r_path.peer());
 }
 
-const MacAddress AgentPath::mac() const {
-    return mac_;
-}
-
-void AgentPath::set_mac(const MacAddress &mac) {
-    mac_ = mac;
-}
-
 bool HostRoute::AddChangePath(Agent *agent, AgentPath *path,
                               const AgentRoute *rt) {
     bool ret = false;
@@ -412,12 +403,6 @@ bool LocalVmRoute::AddChangePath(Agent *agent, AgentPath *path,
         // Use policy based NH if policy enabled on interface
         if (vm_port->policy_enabled()) {
             policy = true;
-            ret = true;
-        }
-
-        // Stitch mac-address from the interface
-        if (path->mac() != vm_port->mac()) {
-            path->set_mac(vm_port->mac());
             ret = true;
         }
     }

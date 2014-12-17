@@ -923,9 +923,5 @@ bool AgentRoute::ReComputeMulticastPaths(AgentPath *path, bool del) {
 
 bool AgentRoute::ProcessPath(Agent *agent, DBTablePartition *part,
                              AgentPath *path, AgentRouteData *data) {
-    const Peer *peer = path->peer();
-    if (peer && peer->RouteUpdate(this, path)) {
-        part->Notify(this);
-    }
     return data->AddChangePath(agent, path, this);
 }

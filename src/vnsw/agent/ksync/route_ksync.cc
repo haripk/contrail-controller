@@ -227,19 +227,51 @@ bool RouteKSyncEntry::Sync(DBEntry *e) {
         wait_for_traffic_ =  route->WaitForTraffic();
         ret = true;
     }
+
+    if (rt_type_ == Agent::INET4_UNICAST) {
+        VrfKSyncObject *obj = ksync_obj_->ksync()->vrf_ksync_obj();
+        const InetUnicastRouteEntry *uc_rt =
+            static_cast<const InetUnicastRouteEntry *>(e);
+        MacAddress mac;
+        if (obj->RouteNeedsMacBinding(uc_rt)) {
+            mac = obj->GetIpMacBinding(uc_rt->vrf(), addr_);
+        }
+
+        if (mac != mac_) {
+            mac_ = mac;
+            ret = true;
+        }
+    }
+
+    if (rt_type_ == Agent::LAYER2) {
+        const Layer2RouteEntry *l2_rt =
+            static_cast<const Layer2RouteEntry *>(e);
+        if (evpn_ip4_.to_v4() != l2_rt->GetVmIpAddress()) {
+            VrfKSyncObject *obj = ksync_obj_->ksync()->vrf_ksync_obj();
+            if (evpn_ip4_.to_v4().to_ulong() != 0) {
+                obj->DelIpMacBinding(l2_rt->vrf(), evpn_ip4_, mac_);
+            }
+
+            evpn_ip4_ = l2_rt->GetVmIpAddress();
+            if (evpn_ip4_.to_v4().to_ulong() != 0) {
+                obj->AddIpMacBinding(l2_rt->vrf(), evpn_ip4_, mac_);
+            }
+        }
+    }
+
     return ret;
-};
+}
 
 void RouteKSyncEntry::FillObjectLog(sandesh_op::type type, 
                                     KSyncRouteInfo &info) const {
-    info.set_addr(address_string_);
-    info.set_vrf(vrf_id_);
-
     if (type == sandesh_op::ADD) {
         info.set_operation("ADD/CHANGE");
     } else {
         info.set_operation("DELETE");
     }
+
+    info.set_addr(address_string_);
+    info.set_vrf(vrf_id_);
 
     if (nh()) {
         info.set_nh_idx(nh()->nh_id());
@@ -249,6 +281,8 @@ void RouteKSyncEntry::FillObjectLog(sandesh_op::type type,
     } else {
         info.set_nh_idx(NH_DISCARD_ID);
     }
+
+    info.set_mac(mac_.ToString());
 }
 
 int RouteKSyncEntry::Encode(sandesh_op::type op, uint8_t replace_plen,
@@ -479,17 +513,17 @@ void VrfKSyncObject::VrfNotify(DBTablePartBase *partition, DBEntryBase *e) {
         // Get Inet4 Route table and register with KSync
         AgentRouteTable *rt_table = static_cast<AgentRouteTable *>(vrf->
                           GetInet4UnicastRouteTable());
-        new RouteKSyncObject(ksync_, rt_table);
+        state->inet4_uc_route_table_ = new RouteKSyncObject(ksync_, rt_table);
 
         // Get Inet6 Route table and register with KSync
         rt_table = static_cast<AgentRouteTable *>(vrf->
                           GetInet6UnicastRouteTable());
-        new RouteKSyncObject(ksync_, rt_table);
+        state->inet6_uc_route_table_ = new RouteKSyncObject(ksync_, rt_table);
 
         // Get Layer 2 Route table and register with KSync
         rt_table = static_cast<AgentRouteTable *>(vrf->
                           GetLayer2RouteTable());
-        new RouteKSyncObject(ksync_, rt_table);
+        state->layer2_route_table_ = new RouteKSyncObject(ksync_, rt_table);
 
         //Now for multicast table. Ksync object for multicast table is 
         //not maintained in vrf list
@@ -497,7 +531,7 @@ void VrfKSyncObject::VrfNotify(DBTablePartBase *partition, DBEntryBase *e) {
         //in MC so just use the UC object for time being.
         rt_table = static_cast<AgentRouteTable *>(vrf->
                           GetInet4MulticastRouteTable());
-        new RouteKSyncObject(ksync_, rt_table);
+        state->inet4_mc_route_table_ = new RouteKSyncObject(ksync_, rt_table);
     }
 }
 
@@ -523,3 +557,91 @@ void vr_route_req::Process(SandeshContext *context) {
     ioc->RouteMsgHandler(this);
 }
 
+/****************************************************************************
+ * Methods to stitch IP and MAC addresses. The KSync object maintains mapping
+ * between IP <-> MAC in ip_mac_binding_ tree. The table is built based on
+ * Layer2 routes.
+ *
+ * When an Inet route is notified, if it needs MAC Stitching, the MAC to 
+ * stitch is found from the ip_mac_binding_ tree
+ *
+ * Any change to ip_mac_binding_ tree will also result in re-evaluation of
+ * Inet4/Inet6 route that may potentially have stitching changed
+ ****************************************************************************/
+
+// A route potentially needs IP-MAC binding if its a host route and points
+// to interface or tunnel-nh
+bool VrfKSyncObject::RouteNeedsMacBinding(const InetUnicastRouteEntry *rt) {
+    if (rt->addr().is_v4() && rt->plen() != 32)
+        return false;
+
+    if (rt->addr().is_v6() && rt->plen() != 128)
+        return false;
+
+    const NextHop *nh = rt->GetActiveNextHop();
+    if (nh == NULL)
+        return false;
+
+    if (nh->GetType() != NextHop::INTERFACE &&
+        nh->GetType() != NextHop::TUNNEL)
+        return false;
+
+    return true;
+}
+
+// Notify change to KSync entry of InetUnicast Route
+void VrfKSyncObject::NotifyUcRoute(VrfEntry *vrf, VrfState *state,
+                                   const IpAddress &ip) {
+    InetUnicastAgentRouteTable *table = NULL;
+    if (ip.is_v4()) {
+        table = vrf->GetInet4UnicastRouteTable();
+    } else {
+        table = vrf->GetInet6UnicastRouteTable();
+    }
+
+    InetUnicastRouteEntry *rt = table->FindLPM(ip);
+    if (rt == NULL || rt->IsDeleted() == false)
+        return;
+
+    if (rt->GetTableType() == Agent::INET4_UNICAST) {
+        state->inet4_uc_route_table_->Notify(rt->get_table_partition(), rt);
+    } else if (rt->GetTableType() == Agent::INET6_UNICAST) {
+        state->inet6_uc_route_table_->Notify(rt->get_table_partition(), rt);
+    }
+}
+
+void VrfKSyncObject::AddIpMacBinding(VrfEntry *vrf, const IpAddress &ip,
+                                     const MacAddress &mac) {
+    VrfState *state = static_cast<VrfState *>
+        (vrf->GetState(vrf->get_table(), vrf_listener_id_));
+    if (state == NULL)
+        return;
+
+    state->ip_mac_binding_[ip] = mac;
+    NotifyUcRoute(vrf, state, ip);
+}
+
+void VrfKSyncObject::DelIpMacBinding(VrfEntry *vrf, const IpAddress &ip,
+                                     const MacAddress &mac) {
+    VrfState *state = static_cast<VrfState *>
+        (vrf->GetState(vrf->get_table(), vrf_listener_id_));
+    if (state == NULL)
+        return;
+
+    state->ip_mac_binding_.erase(ip);
+    NotifyUcRoute(vrf, state, ip);
+}
+
+MacAddress VrfKSyncObject::GetIpMacBinding(VrfEntry *vrf,
+                                           const IpAddress &ip) const {
+    VrfState *state = static_cast<VrfState *>
+        (vrf->GetState(vrf->get_table(), vrf_listener_id_));
+    if (state == NULL)
+        return MacAddress::ZeroMac();
+
+    IpToMacBinding::const_iterator it = state->ip_mac_binding_.find(ip);
+    if (it == state->ip_mac_binding_.end())
+        return MacAddress::ZeroMac();
+
+    return it->second;
+}

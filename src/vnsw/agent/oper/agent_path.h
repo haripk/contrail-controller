@@ -191,8 +191,6 @@ public:
     bool ChangeCompositeNH(Agent *agent, CompositeNHKey *nh);
     // Get nexthop-ip address to be used for path
     const Ip4Address *NexthopIp(Agent *agent) const;
-    const MacAddress mac() const;
-    void set_mac(const MacAddress &mac);
 
 private:
     const Peer *peer_;
@@ -252,14 +250,6 @@ private:
     //helping in deciding the priority during live migration and
     //allowed address pair
     IpAddress subnet_gw_ip_;
-
-    // Stitched MAC for the route. Can be built from any of the IP to ARP 
-    // binding features such as EVPN routes, Config etc...
-    MacAddress mac_;
-
-    // IP Address for the EVPN route
-    Ip4Address stitched_ip4_;
-    Ip6Address stitched_ip6_;
     DISALLOW_COPY_AND_ASSIGN(AgentPath);
 };
 
