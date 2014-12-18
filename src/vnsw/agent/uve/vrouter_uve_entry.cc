@@ -356,7 +356,7 @@ void VrouterUveEntry::FetchDropStats(AgentDropStats &ds) const {
     ds.ds_discard = stats.get_vds_discard();
     ds.ds_pull = stats.get_vds_pull();
     ds.ds_invalid_if = stats.get_vds_invalid_if();
-    ds.ds_arp_not_me = stats.get_vds_arp_not_me();
+    //ds.ds_arp_not_me = stats.get_vds_arp_not_me();
     ds.ds_garp_from_vm = stats.get_vds_garp_from_vm();
     ds.ds_invalid_arp = stats.get_vds_invalid_arp();
     ds.ds_trap_no_if = stats.get_vds_trap_no_if();

@@ -333,7 +333,7 @@ int RouteKSyncEntry::Encode(sandesh_op::type op, uint8_t replace_plen,
     }
 
     if (proxy_arp_) {
-        flags |= VR_RT_HOSTED_FLAG;
+        flags |= VR_RT_PROXY_FLAG;
     }
     if (wait_for_traffic_) {
         flags |= VR_RT_ARP_TRAP_FLAG;
