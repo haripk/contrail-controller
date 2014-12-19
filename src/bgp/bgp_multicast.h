@@ -2,13 +2,14 @@
  * Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
  */
 
-#ifndef ctrlplane_bgp_multicast_h
-#define ctrlplane_bgp_multicast_h
-
-#include <set>
-#include <vector>
+#ifndef SRC_BGP_BGP_MULTICAST_H_
+#define SRC_BGP_BGP_MULTICAST_H_
 
 #include <boost/scoped_ptr.hpp>
+
+#include <set>
+#include <string>
+#include <vector>
 
 #include "base/label_block.h"
 #include "base/lifetime.h"
@@ -104,7 +105,7 @@ public:
     Ip4Address address() const { return address_; }
     std::vector<std::string> encap() const { return encap_; }
     ErmVpnRoute *route() { return route_; }
-    RouteDistinguisher route_distinguisher() const { return rd_; }
+    const RouteDistinguisher &route_distinguisher() const { return rd_; }
     Ip4Address router_id() const { return router_id_; }
 
     bool empty() { return tree_links_.empty(); }
@@ -209,7 +210,7 @@ public:
     void ChangeForwarder(McastForwarder *forwarder);
     void DeleteForwarder(McastForwarder *forwarder);
 
-    RouteDistinguisher GetSourceRd();
+    const RouteDistinguisher &GetSourceRd() const;
     void AddLocalTreeRoute();
     void DeleteLocalTreeRoute();
     void UpdateLocalTreeRoute();
@@ -221,7 +222,9 @@ public:
     Ip4Address source() const { return source_; }
     McastManagerPartition *partition() { return partition_; }
     const ErmVpnRoute *tree_result_route() const { return tree_result_route_; }
-    void set_tree_result_route(ErmVpnRoute *route) { tree_result_route_ = route; }
+    void set_tree_result_route(ErmVpnRoute *route) {
+        tree_result_route_ = route;
+    }
     void clear_tree_result_route() { tree_result_route_ = NULL; }
 
     bool on_work_queue() { return on_work_queue_; }
@@ -374,7 +377,7 @@ public:
         LevelCount = 2,
     };
 
-    McastTreeManager(ErmVpnTable *table);
+    explicit McastTreeManager(ErmVpnTable *table);
     virtual ~McastTreeManager();
 
     virtual void Initialize();
@@ -418,4 +421,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(McastTreeManager);
 };
 
-#endif
+#endif  // SRC_BGP_BGP_MULTICAST_H_
