@@ -2343,8 +2343,11 @@ void VmInterface::UpdateL2InterfaceRoute(bool old_l2_active, bool force_update) 
     const string &vrf_name = vrf_.get()->GetName();
 
     assert(peer_.get());
+    SecurityGroupList sg_id_list;
+    CopySgIdList(&sg_id_list);
     Layer2AgentRouteTable::AddLocalVmRoute(peer_.get(), GetUuid(),
-                                           vn_->GetName(), vrf_name, l2_label_,
+                                           vn_->GetName(), sg_id_list,
+                                           vrf_name, l2_label_,
                                            vxlan_id_, MacAddress::FromString(vm_mac()),
                                            ip_addr(), 0, 32);
 }

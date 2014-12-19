@@ -98,6 +98,7 @@ void Layer2AgentRouteTable::AddLocalVmRouteReq(const Peer *peer,
 void Layer2AgentRouteTable::AddLocalVmRouteReq(const Peer *peer,
                                                const uuid &intf_uuid,
                                                const string &vn_name,
+                                               const SecurityGroupList &sg_list,
                                                const string &vrf_name,
                                                uint32_t mpls_label,
                                                uint32_t vxlan_id,
@@ -107,7 +108,6 @@ void Layer2AgentRouteTable::AddLocalVmRouteReq(const Peer *peer,
                                                uint32_t plen) {
     assert(peer);
     VmInterfaceKey intf_key(AgentKey::ADD_DEL_CHANGE, intf_uuid, "");
-    SecurityGroupList sg_list;
     PathPreference path_preference;
     LocalVmRoute *data = new LocalVmRoute(intf_key, mpls_label, vxlan_id,
                                           false, vn_name,
@@ -120,6 +120,7 @@ void Layer2AgentRouteTable::AddLocalVmRouteReq(const Peer *peer,
 void Layer2AgentRouteTable::AddLocalVmRoute(const Peer *peer,
                                             const uuid &intf_uuid,
                                             const string &vn_name,
+                                            const SecurityGroupList &sg_list,
                                             const string &vrf_name,
                                             uint32_t mpls_label,
                                             uint32_t vxlan_id,
@@ -136,7 +137,6 @@ void Layer2AgentRouteTable::AddLocalVmRoute(const Peer *peer,
     req.key.reset(key);
 
     VmInterfaceKey intf_key(AgentKey::ADD_DEL_CHANGE, intf_uuid, "");
-    SecurityGroupList sg_list;
     PathPreference path_preference;
     LocalVmRoute *data = new LocalVmRoute(intf_key, mpls_label, vxlan_id,
                                           false, vn_name,

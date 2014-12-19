@@ -679,8 +679,6 @@ void AgentXmppChannel::AddEvpnRoute(std::string vrf_name,
     if (agent_->router_id() != addr.to_v4()) {
         CONTROLLER_TRACE(Trace, GetBgpPeerName(), nexthop_addr,
                          "add remote evpn route");
-        // Currently SG not supported for l2 route.
-        SecurityGroupList sg;
         ControllerVmRoute *data =
             ControllerVmRoute::MakeControllerVmRoute(evpn_bgp_peer_id(),
                                                     agent_->fabric_vrf_name(),
@@ -688,7 +686,8 @@ void AgentXmppChannel::AddEvpnRoute(std::string vrf_name,
                                                     vrf_name, addr.to_v4(),
                                                     encap, label,
                                                     item->entry.virtual_network,
-                                                    sg, PathPreference());
+                                                    item->entry.security_group_list.security_group,
+                                                    PathPreference());
         rt_table->AddRemoteVmRouteReq(evpn_bgp_peer_id(), vrf_name,
                                       mac, prefix_addr,
                                       item->entry.nlri.ethernet_tag,
@@ -731,7 +730,6 @@ void AgentXmppChannel::AddEvpnRoute(std::string vrf_name,
             ControllerLocalVmRoute *local_vm_route = NULL;
             VmInterfaceKey vm_intf_key(AgentKey::ADD_DEL_CHANGE,
                                     intf_nh->GetIfUuid(), "");
-            SecurityGroupList sg_list;
             PathPreference path_preference;
             BgpPeer *bgp_peer = evpn_bgp_peer_id();
             if (encap == TunnelType::VxlanType()) {
@@ -741,7 +739,8 @@ void AgentXmppChannel::AddEvpnRoute(std::string vrf_name,
                                                label, false,
                                                item->entry.virtual_network,
                                                InterfaceNHFlags::LAYER2,
-                                               sg_list, path_preference,
+                                               item->entry.security_group_list.security_group,
+                                               path_preference,
                                                unicast_sequence_number(),
                                                this);
             } else {
@@ -752,7 +751,8 @@ void AgentXmppChannel::AddEvpnRoute(std::string vrf_name,
                                                false,
                                                item->entry.virtual_network,
                                                InterfaceNHFlags::LAYER2,
-                                               sg_list, path_preference,
+                                               item->entry.security_group_list.security_group,
+                                               path_preference,
                                                unicast_sequence_number(),
                                                this);
             }
@@ -1656,6 +1656,7 @@ bool AgentXmppChannel::ControllerSendV4V6UnicastRouteCommon(AgentRoute *route,
 bool AgentXmppChannel::ControllerSendEvpnRouteCommon(AgentRoute *route,
                                                      const Ip4Address *nh_ip,
                                                      std::string vn,
+                                                     const SecurityGroupList *sg_list,
                                                      uint32_t label,
                                                      uint32_t tunnel_bmap,
                                                      bool associate) {
@@ -1721,6 +1722,11 @@ bool AgentXmppChannel::ControllerSendEvpnRouteCommon(AgentRoute *route,
             }
             nh.tunnel_encapsulation_list.tunnel_encapsulation.push_back("vxlan");
         }
+
+        if (sg_list && sg_list->size()) {
+            item.entry.security_group_list.security_group = *sg_list;
+        }
+
     } else {
         item.entry.nlri.ethernet_tag = label;
     }
@@ -1887,7 +1893,8 @@ bool AgentXmppChannel::ControllerSendEvpnRouteAdd(AgentXmppChannel *peer,
                                                   const Ip4Address *nh_ip,
                                                   std::string vn,
                                                   uint32_t label,
-                                                  uint32_t tunnel_bmap) {
+                                                  uint32_t tunnel_bmap,
+                                                  const SecurityGroupList *sg_list) {
     if (!peer) return false;
 
     CONTROLLER_TRACE(RouteExport, peer->GetBgpPeerName(),
@@ -1896,6 +1903,7 @@ bool AgentXmppChannel::ControllerSendEvpnRouteAdd(AgentXmppChannel *peer,
     return (peer->ControllerSendEvpnRouteCommon(route,
                                                 nh_ip,
                                                 vn,
+                                                sg_list,
                                                 label,
                                                 tunnel_bmap,
                                                 true));
@@ -1915,6 +1923,7 @@ bool AgentXmppChannel::ControllerSendEvpnRouteDelete(AgentXmppChannel *peer,
     return (peer->ControllerSendEvpnRouteCommon(route,
                                                 &nh_ip,
                                                 vn,
+                                                NULL,
                                                 label,
                                                 tunnel_bmap,
                                                 false));
@@ -1948,7 +1957,7 @@ bool AgentXmppChannel::ControllerSendRouteAdd(AgentXmppChannel *peer,
     }
     if (type == Agent::LAYER2) {
         ret = peer->ControllerSendEvpnRouteCommon(route, nexthop_ip, vn,
-                                                  label, bmap, true);
+                                                  sg_list, label, bmap, true);
     }
     return ret;
 }
@@ -1982,7 +1991,7 @@ bool AgentXmppChannel::ControllerSendRouteDelete(AgentXmppChannel *peer,
     }
     if (type == Agent::LAYER2) {
         Ip4Address nh_ip(0);
-        ret = peer->ControllerSendEvpnRouteCommon(route, &nh_ip, vn,
+        ret = peer->ControllerSendEvpnRouteCommon(route, &nh_ip, vn, NULL,
                                                   label, bmap, false);
     }
     return ret;

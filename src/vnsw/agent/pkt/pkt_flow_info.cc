@@ -202,7 +202,7 @@ static bool NhDecode(const NextHop *nh, const PktInfo *pkt, PktFlowInfo *info,
         if (out->intf_->type() == Interface::VM_INTERFACE) {
             //Local flow, pick destination interface
             //nexthop as reverse flow key
-            out->nh_ = GetPolicyEnabledNH(nh)->id();
+            out->nh_ = out->intf_->flow_key_nh()->id();
             out->vrf_ = static_cast<const InterfaceNH*>(nh)->GetVrf();
         } else if (out->intf_->type() == Interface::PACKET) {
             //Packet destined to pkt interface, packet originating

@@ -73,7 +73,8 @@ public:
                                            const Ip4Address *nexthop_ip,
                                            std::string vn,
                                            uint32_t mpls_label,
-                                           uint32_t tunnel_bmap);
+                                           uint32_t tunnel_bmap,
+                                          const SecurityGroupList *sg_list);
     static bool ControllerSendMcastRouteAdd(AgentXmppChannel *peer,
                                             AgentRoute *route);
     //Deletes to control node
@@ -132,6 +133,7 @@ public:
     bool ControllerSendEvpnRouteCommon(AgentRoute *route,
                                        const Ip4Address *nexthop_ip,
                                        std::string vn,
+                                       const SecurityGroupList *sg_list,
                                        uint32_t mpls_label,
                                        uint32_t tunnel_bmap,
                                        bool associate);
