@@ -1739,8 +1739,8 @@ void VmInterface::AllocL2MplsLabel(bool force_update,
 
     Agent *agent = static_cast<InterfaceTable *>(get_table())->agent();
     if (force_update || policy_change || new_entry)
-        MplsLabel::CreateVPortLabel(agent, l2_label_, GetUuid(), false,
-                                    InterfaceNHFlags::LAYER2);
+        MplsLabel::CreateVPortLabel(agent, l2_label_, GetUuid(),
+                                    policy_enabled_, InterfaceNHFlags::LAYER2);
 }
 
 // Delete MPLS Label for Layer2 routes
