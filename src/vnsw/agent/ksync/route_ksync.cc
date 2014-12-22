@@ -375,7 +375,7 @@ int RouteKSyncEntry::Encode(sandesh_op::type op, uint8_t replace_plen,
     }
 
     if (proxy_arp_ || (nexthop->type() == NextHop::RESOLVE)) {
-        flags |= VR_RT_PROXY_FLAG;
+        flags |= VR_RT_ARP_PROXY_FLAG;
     }
 
     if (wait_for_traffic_) {
