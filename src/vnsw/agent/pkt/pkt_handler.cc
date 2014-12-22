@@ -716,7 +716,7 @@ bool PktHandler::IsManagedTORPacket(Interface *intf, PktInfo *pkt_info,
     pkt += 8;
 
     // get to the actual packet header
-    ParseEthernetHeader(pkt_info, pkt);
+    pkt += ParseEthernetHeader(pkt_info, pkt);
 
     ether_addr addr;
     memcpy(addr.ether_addr_octet, pkt_info->eth->ether_shost, ETH_ALEN);
