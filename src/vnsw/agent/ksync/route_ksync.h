@@ -72,6 +72,7 @@ private:
     bool wait_for_traffic_;
     IpAddress evpn_ip4_;
     IpAddress evpn_ip6_;
+    bool flood_;
     DISALLOW_COPY_AND_ASSIGN(RouteKSyncEntry);
 };
 
