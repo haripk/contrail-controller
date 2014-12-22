@@ -217,7 +217,6 @@ struct PathSandeshData {
     6: string unresolved;             // true or false
     7: optional string gw_ip;         // GW IP
     8: optional string vrf (link="VrfListReq"); // Vrf
-    9: string proxy_arp;              // Proxy ARP for this path
    10: optional list<i32> sg_list;
    11: string supported_tunnel_type;
    12: string active_tunnel_type;
@@ -230,6 +229,8 @@ struct RouteUcSandeshData {
     2: i32 src_plen;                    // prefix length
     3: string src_vrf (link="VrfListReq"); // VRF
     4: list<PathSandeshData> path_list; // paths
+    5: optional bool ipam_subnet_route;   // associated IPAM subnet 
+    6: optional bool proxy_arp;           // Proxy ARP
 }
 
 struct RouteMcSandeshData {

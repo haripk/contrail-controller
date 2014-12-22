@@ -41,13 +41,15 @@ RouteKSyncEntry::RouteKSyncEntry(RouteKSyncObject* obj,
     prefix_len_(entry->prefix_len_), nh_(entry->nh_), label_(entry->label_), 
     proxy_arp_(false), address_string_(entry->address_string_),
     tunnel_type_(entry->tunnel_type_),
-    wait_for_traffic_(entry->wait_for_traffic_) {
+    wait_for_traffic_(entry->wait_for_traffic_),
+    flood_(entry->flood_) {
 }
 
 RouteKSyncEntry::RouteKSyncEntry(RouteKSyncObject* obj, const AgentRoute *rt) :
     KSyncNetlinkDBEntry(kInvalidIndex), ksync_obj_(obj), 
     vrf_id_(rt->vrf_id()), nh_(NULL), label_(0), proxy_arp_(false),
-    tunnel_type_(TunnelType::DefaultType()), wait_for_traffic_(false) {
+    tunnel_type_(TunnelType::DefaultType()), wait_for_traffic_(false),
+    flood_(false) {
     boost::system::error_code ec;
     rt_type_ = rt->GetTableType();
     switch (rt_type_) {
@@ -219,8 +221,6 @@ bool RouteKSyncEntry::Sync(DBEntry *e) {
             tunnel_type_ = path->GetTunnelType();
             ret = true;
         }
-
-        proxy_arp_ = path->proxy_arp();
     }
 
     if (wait_for_traffic_ != route->WaitForTraffic()) {
@@ -228,13 +228,56 @@ bool RouteKSyncEntry::Sync(DBEntry *e) {
         ret = true;
     }
 
+    if (rt_type_ == Agent::INET6_UNICAST) {
+        const InetUnicastRouteEntry *uc_rt =
+            static_cast<const InetUnicastRouteEntry *>(route);
+        if (flood_ != uc_rt->ipam_subnet_route()) {
+            flood_ = uc_rt->ipam_subnet_route();
+            ret = true;
+        }
+    }
+
     if (rt_type_ == Agent::INET4_UNICAST) {
         VrfKSyncObject *obj = ksync_obj_->ksync()->vrf_ksync_obj();
         const InetUnicastRouteEntry *uc_rt =
             static_cast<const InetUnicastRouteEntry *>(e);
         MacAddress mac;
-        if (obj->RouteNeedsMacBinding(uc_rt)) {
+        bool route_needs_mac_binding = obj->RouteNeedsMacBinding(uc_rt);
+        if (route_needs_mac_binding) {
             mac = obj->GetIpMacBinding(uc_rt->vrf(), addr_);
+        }
+
+        bool is_binding_available = (MacAddress::ZeroMac() != mac);
+        if (is_binding_available) {
+            if (proxy_arp_ != true) {
+                proxy_arp_ = true;
+                ret = true;
+            }
+            if (flood_ != false) {
+                flood_ = false;
+                ret = true;
+            }
+        } else {
+            if (uc_rt->FindLocalVmPortPath()) {
+                if (proxy_arp_ != false) {
+                    proxy_arp_ = false;
+                    ret = true;
+                }
+                if (flood_ != true) {
+                    flood_ = true;
+                    ret = true;
+                }
+            } else {
+                if (proxy_arp_ != uc_rt->proxy_arp()) {
+                    proxy_arp_ = uc_rt->proxy_arp();
+                    ret = true;
+                }
+
+                if (flood_ != uc_rt->ipam_subnet_route()) {
+                    flood_ = uc_rt->ipam_subnet_route();
+                    ret = true;
+                }
+            }
         }
 
         if (mac != mac_) {
@@ -332,12 +375,20 @@ int RouteKSyncEntry::Encode(sandesh_op::type op, uint8_t replace_plen,
         }
     }
 
-    if (proxy_arp_) {
-        flags |= VR_RT_PROXY_FLAG;
+    if (proxy_arp_ || (nexthop->type() == NextHop::RESOLVE)) {
+        flags |= VR_RT_ARP_PROXY_FLAG;
     }
+
     if (wait_for_traffic_) {
         flags |= VR_RT_ARP_TRAP_FLAG;
     }
+
+    //Dont set the flood flag when resolve NH is present as NH.
+    //Arp shud go for arp resolve.
+    if (flood_ && (nexthop->type() != NextHop::RESOLVE)) {
+        flags |= VR_RT_ARP_FLOOD_FLAG;
+    }
+
     encoder.set_rtr_label_flags(flags);
     encoder.set_rtr_label(label);
 
