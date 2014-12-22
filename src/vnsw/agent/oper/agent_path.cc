@@ -326,8 +326,8 @@ bool HostRoute::UpdateRoute(AgentRoute *rt) {
         (table->GetTableType() != Agent::INET6_UNICAST))
         return ret;
 
-    if (uc_rt->proxy_arp() != proxy_arp_) {
-        uc_rt->set_proxy_arp(proxy_arp_);
+    if (uc_rt->proxy_arp() != true) {
+        uc_rt->set_proxy_arp(true);
         ret = true;
     }
     return ret;
