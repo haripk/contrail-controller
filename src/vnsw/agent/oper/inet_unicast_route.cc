@@ -488,9 +488,6 @@ bool InetUnicastRouteEntry::EcmpDeletePath(AgentPath *path) {
  * gateway without having Ipam path, then search continues further
  */
 bool InetUnicastRouteEntry::IpamSubnetRouteAvailable() const {
-    if (IsHostRoute())
-        return false;
-
     //Local path present means that this route itself was programmed
     //because of IPAM add as well and hence its eligible for flood in
     //all paths where NH is tunnel.

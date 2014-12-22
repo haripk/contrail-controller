@@ -247,17 +247,18 @@ bool RouteKSyncEntry::Sync(DBEntry *e) {
             mac = obj->GetIpMacBinding(uc_rt->vrf(), addr_);
         }
 
-        if (uc_rt->FindLocalVmPortPath()) {
-            if (route_needs_mac_binding) {
-                if (proxy_arp_ != true) {
-                    proxy_arp_ = true;
-                    ret = true;
-                }
-                if (flood_ != false) {
-                    flood_ = false;
-                    ret = true;
-                }
-            } else {
+        bool is_binding_available = (MacAddress::ZeroMac() != mac);
+        if (is_binding_available) {
+            if (proxy_arp_ != true) {
+                proxy_arp_ = true;
+                ret = true;
+            }
+            if (flood_ != false) {
+                flood_ = false;
+                ret = true;
+            }
+        } else {
+            if (uc_rt->FindLocalVmPortPath()) {
                 if (proxy_arp_ != false) {
                     proxy_arp_ = false;
                     ret = true;
@@ -266,16 +267,16 @@ bool RouteKSyncEntry::Sync(DBEntry *e) {
                     flood_ = true;
                     ret = true;
                 }
-            }
-        } else {
-            if (proxy_arp_ != uc_rt->proxy_arp()) {
-                proxy_arp_ = uc_rt->proxy_arp();
-                ret = true;
-            }
+            } else {
+                if (proxy_arp_ != uc_rt->proxy_arp()) {
+                    proxy_arp_ = uc_rt->proxy_arp();
+                    ret = true;
+                }
 
-            if (flood_ != uc_rt->ipam_subnet_route()) {
-                flood_ = uc_rt->ipam_subnet_route();
-                ret = true;
+                if (flood_ != uc_rt->ipam_subnet_route()) {
+                    flood_ = uc_rt->ipam_subnet_route();
+                    ret = true;
+                }
             }
         }
 
