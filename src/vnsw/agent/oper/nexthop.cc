@@ -643,8 +643,20 @@ void VrfNH::SetKey(const DBRequestKey *k) {
 }
 
 VrfNH::KeyPtr VrfNH::GetDBRequestKey() const {
-    NextHopKey *key = new VrfNHKey(vrf_->GetName(), false);
+    NextHopKey *key = new VrfNHKey(vrf_->GetName(), policy_);
     return DBEntryBase::KeyPtr(key);
+}
+
+bool VrfNH::Change(const DBRequest *req) {
+    bool ret = false;
+    const VrfNHData *data = static_cast<const VrfNHData *>(req->data.get());
+
+    if (vxlan_nh_ != data->vxlan_nh_) {
+        vxlan_nh_ = data->vxlan_nh_;
+        ret = true;
+    }
+
+    return ret;
 }
 
 void VrfNH::SendObjectLog(AgentLogEvent::type event) const {
@@ -2132,6 +2144,9 @@ void NextHop::SetNHSandeshData(NhSandeshData &data) const {
     switch (type_) {
         case DISCARD:
             data.set_type("discard");
+            break;
+        case L2_RECEIVE:
+            data.set_type("l2-receive");
             break;
         case RECEIVE: {
             data.set_type("receive");

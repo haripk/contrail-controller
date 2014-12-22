@@ -839,6 +839,11 @@ void AgentRoute::FillTrace(RouteInfo &rt_info, Trace event,
             rt_info.set_nh_type("COMPOSITE");
             break;
         }
+ 
+        case NextHop::L2_RECEIVE: {
+            rt_info.set_nh_type("L2_RECEIVE");
+            break;
+        }
   
         default:
             assert(0);

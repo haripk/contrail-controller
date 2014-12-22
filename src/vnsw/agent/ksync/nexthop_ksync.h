@@ -92,6 +92,7 @@ private:
     uint8_t prefix_len_;
     uint32_t nh_id_;
     ComponentNHKeyList component_nh_key_list_;
+    bool vxlan_nh_;
     DISALLOW_COPY_AND_ASSIGN(NHKSyncEntry);
 };
 

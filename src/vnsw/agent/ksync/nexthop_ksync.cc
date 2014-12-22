@@ -43,7 +43,8 @@ NHKSyncEntry::NHKSyncEntry(NHKSyncObject *obj, const NHKSyncEntry *entry,
     is_layer2_(entry->is_layer2_), comp_type_(entry->comp_type_),
     tunnel_type_(entry->tunnel_type_), prefix_len_(entry->prefix_len_),
     nh_id_(entry->nh_id()),
-    component_nh_key_list_(entry->component_nh_key_list_) {
+    component_nh_key_list_(entry->component_nh_key_list_),
+    vxlan_nh_(entry->vxlan_nh_){
 }
 
 NHKSyncEntry::NHKSyncEntry(NHKSyncObject *obj, const NextHop *nh) :
@@ -51,7 +52,8 @@ NHKSyncEntry::NHKSyncEntry(NHKSyncObject *obj, const NextHop *nh) :
     vrf_id_(0), interface_(NULL), valid_(nh->IsValid()),
     policy_(nh->PolicyEnabled()), is_mcast_nh_(false), nh_(nh),
     vlan_tag_(VmInterface::kInvalidVlanId), is_layer2_(false),
-    tunnel_type_(TunnelType::INVALID), prefix_len_(32), nh_id_(nh->id()) {
+    tunnel_type_(TunnelType::INVALID), prefix_len_(32), nh_id_(nh->id()),
+    vxlan_nh_(false) {
 
     sip_.s_addr = 0;
     switch (type_) {
@@ -122,6 +124,7 @@ NHKSyncEntry::NHKSyncEntry(NHKSyncObject *obj, const NextHop *nh) :
     case NextHop::VRF: {
         const VrfNH *vrf_nh = static_cast<const VrfNH *>(nh);
         vrf_id_ = vrf_nh->GetVrf()->vrf_id();
+        vxlan_nh_ = vrf_nh->vxlan_nh();
         break;
     }
 
@@ -571,6 +574,7 @@ bool NHKSyncEntry::Sync(DBEntry *e) {
     case NextHop::VRF: {
         VrfNH *vrf_nh = static_cast<VrfNH *>(e);
         vrf_id_ = vrf_nh->GetVrf()->vrf_id();
+        vxlan_nh_ = vrf_nh->vxlan_nh();
         ret = false;
         break;
     }
@@ -703,6 +707,9 @@ int NHKSyncEntry::Encode(sandesh_op::type op, char *buf, int buf_len) {
 
         case NextHop::VRF:
             encoder.set_nhr_type(NH_VXLAN_VRF);
+            if (vxlan_nh_) {
+                flags |= NH_FLAG_VNID;
+            }
             break;
 
         case NextHop::COMPOSITE: {

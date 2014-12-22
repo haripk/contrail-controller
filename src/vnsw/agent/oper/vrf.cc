@@ -158,7 +158,12 @@ void VrfEntry::PostAdd() {
                                     false);
     }
 
-    UpdateVxlanId(table->agent(), vxlan_id_);
+    uint32_t vxlan_id = VxLanTable::kInvalidvxlan_id;
+    if (vn_) {
+        vxlan_id = vn_->GetVxLanId();
+    }
+    UpdateVxlanId(table->agent(), vxlan_id);
+    SendObjectLog(AgentLogEvent::ADD);
 }
 
 bool VrfEntry::CanDelete(DBRequest *req) {
@@ -338,10 +343,6 @@ DBEntry *VrfTable::Add(const DBRequest *req) {
     name_tree_.insert( VrfNamePair(key->name_, vrf));
 
     vrf->vn_.reset(agent()->vn_table()->Find(data->vn_uuid_));
-    if (vrf->vn_.get()) {
-        vrf->vxlan_id_ = vrf->vn_->GetVxLanId();
-    }
-    vrf->SendObjectLog(AgentLogEvent::ADD);
     return vrf;
 }
 

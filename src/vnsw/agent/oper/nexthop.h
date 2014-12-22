@@ -494,8 +494,8 @@ private:
 /////////////////////////////////////////////////////////////////////////////
 class L2ReceiveNHKey : public NextHopKey {
 public:
-    L2ReceiveNHKey() : NextHopKey(NextHop::L2_RECEIVE, false) { };
-    virtual ~L2ReceiveNHKey() { };
+    L2ReceiveNHKey() : NextHopKey(NextHop::L2_RECEIVE, false) { }
+    virtual ~L2ReceiveNHKey() { }
     virtual bool NextHopKeyIsLess(const NextHopKey &rhs) const {
         // There is single Layer2 Receive NH. There is no field to compare
         return false;
@@ -518,10 +518,10 @@ private:
 
 class L2ReceiveNH : public NextHop {
 public:
-    L2ReceiveNH() : NextHop(DISCARD, true, false) { };
+    L2ReceiveNH() : NextHop(L2_RECEIVE, true, false) { };
     virtual ~L2ReceiveNH() { };
 
-    virtual std::string ToString() const { return "DISCARD"; };
+    virtual std::string ToString() const { return "L2-Receive"; };
     // No change expected to Discard NH */
     virtual bool Change(const DBRequest *req) { return false; };
     virtual void Delete(const DBRequest *req) {};
@@ -939,6 +939,7 @@ public:
     virtual NextHopKey *Clone() const {
         return new VrfNHKey(vrf_key_.name_, policy_); 
     }
+
 private:
     friend class VrfNH;
     VrfKey vrf_key_;
@@ -948,10 +949,11 @@ private:
 
 class VrfNHData : public NextHopData {
 public:
-    VrfNHData() : NextHopData() { }
+    VrfNHData(bool vxlan_nh) : NextHopData(), vxlan_nh_(vxlan_nh) { }
     virtual ~VrfNHData() { }
 private:
     friend class VrfNH;
+    bool vxlan_nh_;
     DISALLOW_COPY_AND_ASSIGN(VrfNHData);
 };
 
@@ -965,7 +967,7 @@ public:
     virtual bool NextHopIsLess(const DBEntry &rhs) const;
     virtual void SetKey(const DBRequestKey *key);
     // No change expected for VRF Nexthop
-    virtual bool Change(const DBRequest *req) {return false;};
+    virtual bool Change(const DBRequest *req);
     virtual void Delete(const DBRequest *req) {};
     virtual KeyPtr GetDBRequestKey() const;
     virtual void SendObjectLog(AgentLogEvent::type event) const;
@@ -975,9 +977,12 @@ public:
     virtual bool DeleteOnZeroRefCount() const {
         return true;
     }
+    bool vxlan_nh() const { return vxlan_nh_; }
 
 private:
     VrfEntryRef vrf_;
+    // NH created by VXLAN
+    bool vxlan_nh_;
     DISALLOW_COPY_AND_ASSIGN(VrfNH);
 };
 
