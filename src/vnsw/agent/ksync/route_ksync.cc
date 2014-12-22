@@ -350,6 +350,11 @@ int RouteKSyncEntry::Encode(sandesh_op::type op, uint8_t replace_plen,
             encoder.set_rtr_prefix(rtr_prefix);
         }
         encoder.set_rtr_prefix_len(prefix_len_);
+        if (mac_ != MacAddress::ZeroMac()) {
+            std::vector<int8_t> mac((int8_t *)mac_,
+                    (int8_t *)mac_ + mac_.size());
+            encoder.set_rtr_mac(mac);
+        }
     } else {
         encoder.set_rtr_family(AF_BRIDGE);
         //TODO add support for mac
@@ -375,7 +380,7 @@ int RouteKSyncEntry::Encode(sandesh_op::type op, uint8_t replace_plen,
         }
     }
 
-    if (proxy_arp_ || (nexthop->type() == NextHop::RESOLVE)) {
+    if (proxy_arp_) {
         flags |= VR_RT_ARP_PROXY_FLAG;
     }
 
