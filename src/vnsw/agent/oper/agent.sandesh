@@ -254,6 +254,7 @@ struct VrfSandeshData {
     6: i32 uc6index (link="Inet6UcRouteReq"); // VRF Index INET6 UC Table
     7: string vn (link="VnListReq");          // VN-Name
     8: i32 table_label;                      //Label for route lookup on this vrf
+    9: i32 vxlan_id;                         // VRF Label used for the VRF
 }
 
 struct MplsSandeshData {

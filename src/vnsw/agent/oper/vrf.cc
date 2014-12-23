@@ -262,6 +262,7 @@ bool VrfEntry::DBEntrySandesh(Sandesh *sresp, std::string &name) const {
 
         std::vector<VrfSandeshData> &list = 
                 const_cast<std::vector<VrfSandeshData>&>(resp->get_vrf_list());
+        data.set_vxlan_id(vxlan_id_);
         list.push_back(data);
         return true;
     }

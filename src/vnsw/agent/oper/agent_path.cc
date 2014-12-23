@@ -343,6 +343,12 @@ bool L2ReceiveRoute::AddChangePath(Agent *agent, AgentPath *path,
         path->set_dest_vn_name(dest_vn_name_);
         ret = true;
     }
+
+    if (path->vxlan_id() != vxlan_id_) {
+        path->set_vxlan_id(vxlan_id_);
+        ret = true;
+    }
+
     if (path->ChangeNH(agent, agent->nexthop_table()->l2_receive_nh()) == true)
         ret = true;
 
