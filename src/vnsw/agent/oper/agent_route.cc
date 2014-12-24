@@ -318,14 +318,10 @@ void AgentRouteTable::Input(DBTablePartition *part, DBClient *client,
 
         if (key->sub_op_ == AgentKey::RESYNC) {
             if (rt && (rt->IsDeleted() == false)) {
-                if (data &&
-                    data->type_ == AgentRouteData::ROUTE_PREFERENCE_CHANGE) {
-                    //Resync operation changes preference, sequence number and
-                    //wait for traffic flag for a path
-                    path = rt->FindPath(key->peer());
-                    if (path) {
-                        notify = rt->ProcessPath(agent_, part, path, data);
-                    }
+                if (data) {
+                    notify = data->AddChangePath(agent_,
+                             key->peer() ? rt->FindPath(key->peer()) : NULL,
+                             rt);
                 } else {
                     //Ignore RESYNC if received on non-existing
                     //or deleted route entry
