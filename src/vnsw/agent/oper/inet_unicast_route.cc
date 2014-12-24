@@ -209,7 +209,7 @@ bool InetUnicastAgentRouteTable::ResyncSubnetRoutes(const InetUnicastRouteEntry 
                 break;
         }
 
-        //Ignore all non subnet routes.
+        //Ignored all non subnet routes.
         if (lpm_rt->IsHostRoute() == false) {
             bool notify = false;
             if (lpm_rt->ipam_subnet_route() != add_change) {
@@ -217,10 +217,11 @@ bool InetUnicastAgentRouteTable::ResyncSubnetRoutes(const InetUnicastRouteEntry 
                 notify = true;
             }
 
-            if((lpm_rt->proxy_arp() == false) &&
-               (add_change == false)) {
-                lpm_rt->set_proxy_arp(true);
-                notify = true;
+            if (lpm_rt->proxy_arp() == true) {
+                if (add_change == true) {
+                    lpm_rt->set_proxy_arp(false);
+                    notify = true;
+                } 
             }
 
             if (notify) {
@@ -529,6 +530,7 @@ bool InetUnicastRouteEntry::ReComputePathDeletion(AgentPath *path) {
     if (path->is_subnet_discard()) {
         //Reset flag on route as ipam is going off.
         ipam_subnet_route_ = false;
+        proxy_arp_ = false;
         InetUnicastAgentRouteTable *uc_rt_table =
             static_cast<InetUnicastAgentRouteTable *>(get_table());
         uc_rt_table->ResyncSubnetRoutes(this, false);

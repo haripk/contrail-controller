@@ -180,6 +180,95 @@ std::string RouteKSyncEntry::ToString() const {
     return s.str();
 }
 
+bool RouteKSyncEntry::BuildRouteFlags(const DBEntry *e,
+                                      const MacAddress &mac) {
+    bool ret = false;
+
+    //Route flags for inet4 and inet6
+    if ((rt_type_ != Agent::INET6_UNICAST) &&
+        (rt_type_ != Agent::INET4_UNICAST))
+        return false;
+
+    Agent *agent = ksync_obj_->ksync()->agent();
+    const InetUnicastRouteEntry *rt =
+        static_cast<const InetUnicastRouteEntry *>(e);
+
+    //Inet6
+    if (rt_type_ == Agent::INET6_UNICAST) {
+        if (flood_ != rt->ipam_subnet_route()) {
+            flood_ = rt->ipam_subnet_route();
+            ret = true;
+        }
+
+        return ret;
+    }
+
+    //Route is V4
+    assert(rt_type_ == Agent::INET4_UNICAST);
+    //resolve NH handling i.e. gateway
+    if (rt->GetActiveNextHop()->GetType() == NextHop::RESOLVE) { 
+        if (rt->vrf()->GetName() != agent->fabric_vrf_name()) {
+            if (proxy_arp_ == false) {
+                proxy_arp_ = true;
+                ret = true;
+            }
+
+            if (flood_ == true) {
+                flood_ = false;
+                ret = true;
+            }
+        } else {
+            if (proxy_arp_ == true) {
+                proxy_arp_ = false;
+                ret = true;
+            }
+
+            if (flood_ == true) {
+                flood_ = false;
+                ret = true;
+            }
+        }
+
+        return ret;
+    }
+
+    //Rest of the v4 cases
+    bool is_binding_available = (MacAddress::ZeroMac() != mac);
+    if (is_binding_available) {
+        if (proxy_arp_ != true) {
+            proxy_arp_ = true;
+            ret = true;
+        }
+        if (flood_ != false) {
+            flood_ = false;
+            ret = true;
+        }
+    } else {
+        if (rt->FindLocalVmPortPath()) {
+            if (proxy_arp_ != false) {
+                proxy_arp_ = false;
+                ret = true;
+            }
+            if (flood_ != true) {
+                flood_ = true;
+                ret = true;
+            }
+        } else {
+            if (proxy_arp_ != rt->proxy_arp()) {
+                proxy_arp_ = rt->proxy_arp();
+                ret = true;
+            }
+
+            if (flood_ != rt->ipam_subnet_route()) {
+                flood_ = rt->ipam_subnet_route();
+                ret = true;
+            }
+        }
+    }
+
+    return ret;
+ }
+
 bool RouteKSyncEntry::Sync(DBEntry *e) {
     bool ret = false;
     const AgentRoute *route;
@@ -228,56 +317,13 @@ bool RouteKSyncEntry::Sync(DBEntry *e) {
         ret = true;
     }
 
-    if (rt_type_ == Agent::INET6_UNICAST) {
-        const InetUnicastRouteEntry *uc_rt =
-            static_cast<const InetUnicastRouteEntry *>(route);
-        if (flood_ != uc_rt->ipam_subnet_route()) {
-            flood_ = uc_rt->ipam_subnet_route();
-            ret = true;
-        }
-    }
-
     if (rt_type_ == Agent::INET4_UNICAST) {
         VrfKSyncObject *obj = ksync_obj_->ksync()->vrf_ksync_obj();
         const InetUnicastRouteEntry *uc_rt =
             static_cast<const InetUnicastRouteEntry *>(e);
         MacAddress mac;
-        bool route_needs_mac_binding = obj->RouteNeedsMacBinding(uc_rt);
-        if (route_needs_mac_binding) {
+        if (obj->RouteNeedsMacBinding(uc_rt)) {
             mac = obj->GetIpMacBinding(uc_rt->vrf(), addr_);
-        }
-
-        bool is_binding_available = (MacAddress::ZeroMac() != mac);
-        if (is_binding_available) {
-            if (proxy_arp_ != true) {
-                proxy_arp_ = true;
-                ret = true;
-            }
-            if (flood_ != false) {
-                flood_ = false;
-                ret = true;
-            }
-        } else {
-            if (uc_rt->FindLocalVmPortPath()) {
-                if (proxy_arp_ != false) {
-                    proxy_arp_ = false;
-                    ret = true;
-                }
-                if (flood_ != true) {
-                    flood_ = true;
-                    ret = true;
-                }
-            } else {
-                if (proxy_arp_ != uc_rt->proxy_arp()) {
-                    proxy_arp_ = uc_rt->proxy_arp();
-                    ret = true;
-                }
-
-                if (flood_ != uc_rt->ipam_subnet_route()) {
-                    flood_ = uc_rt->ipam_subnet_route();
-                    ret = true;
-                }
-            }
         }
 
         if (mac != mac_) {
@@ -285,6 +331,9 @@ bool RouteKSyncEntry::Sync(DBEntry *e) {
             ret = true;
         }
     }
+
+    if (BuildRouteFlags(e, mac_))
+        ret = true;
 
     if (rt_type_ == Agent::LAYER2) {
         const Layer2RouteEntry *l2_rt =
@@ -388,9 +437,7 @@ int RouteKSyncEntry::Encode(sandesh_op::type op, uint8_t replace_plen,
         flags |= VR_RT_ARP_TRAP_FLAG;
     }
 
-    //Dont set the flood flag when resolve NH is present as NH.
-    //Arp shud go for arp resolve.
-    if (flood_ && (nexthop->type() != NextHop::RESOLVE)) {
+    if (flood_) {
         flags |= VR_RT_ARP_FLOOD_FLAG;
     }
 

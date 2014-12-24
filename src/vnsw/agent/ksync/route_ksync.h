@@ -55,6 +55,8 @@ private:
     bool UcIsLess(const KSyncEntry &rhs) const;
     bool McIsLess(const KSyncEntry &rhs) const;
     bool L2IsLess(const KSyncEntry &rhs) const;
+    bool BuildRouteFlags(const DBEntry *rt,
+                         const MacAddress &mac);
 
     RouteKSyncObject* ksync_obj_;
     Agent::RouteTableType rt_type_;
