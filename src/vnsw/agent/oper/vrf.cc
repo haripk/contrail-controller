@@ -166,14 +166,6 @@ void VrfEntry::PostAdd() {
     SendObjectLog(AgentLogEvent::ADD);
 }
 
-bool VrfEntry::CanDelete(DBRequest *req) {
-    VrfData *data = static_cast<VrfData *>(req->data.get());
-    // Update flags
-    flags_ &= ~data->flags_;
-    // Do not delete the VRF if config VRF or gateway VRF flag is still set
-    return flags_ ? false : true;
-}
-
 DBEntryBase::KeyPtr VrfEntry::GetDBRequestKey() const {
     VrfKey *key = new VrfKey(name_);
     return DBEntryBase::KeyPtr(key);
@@ -369,6 +361,14 @@ bool VrfTable::OnChange(DBEntry *entry, const DBRequest *req) {
 
 bool VrfTable::Delete(DBEntry *entry, const DBRequest *req) {
     VrfEntry *vrf = static_cast<VrfEntry *>(entry);
+    VrfData *data = static_cast<VrfData *>(req->data.get());
+
+    // VRF can be created by both config and VGW. VRF cannot be deleted till
+    // both config and VGW delete it.
+    vrf->flags_ &= ~data->flags_;
+    if (vrf->flags_ != 0)
+        return false;
+
     vrf->UpdateVxlanId(agent(), VxLanTable::kInvalidvxlan_id);
     vrf->vn_.reset(NULL);
     if (vrf->table_label() != MplsTable::kInvalidLabel) {
