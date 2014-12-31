@@ -6,7 +6,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <boost/uuid/string_generator.hpp>
 
 #include <io/event_manager.h>
 #include <base/task.h>
@@ -221,7 +220,7 @@ TEST_F(PktTest, tx_vlan_1) {
     DBRequest req(DBRequest::DB_ENTRY_ADD_CHANGE);
     req.key.reset(new VmInterfaceKey(AgentKey::ADD_DEL_CHANGE, MakeUuid(2),
                                      "vm-itf-2"));
-    VmInterfaceConfigData *data = new VmInterfaceConfigData(NULL);
+    VmInterfaceConfigData *data = new VmInterfaceConfigData(NULL, NULL);
     data->addr_ = Ip4Address::from_string("1.1.1.2");
     data->vm_mac_ = "00:00:00:00:00:01";
     data->cfg_name_ = "vm-1";

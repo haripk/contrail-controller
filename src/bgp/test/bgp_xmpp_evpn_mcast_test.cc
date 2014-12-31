@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
  */
+#include <boost/foreach.hpp>
 
 #include "base/test/task_test_util.h"
 #include "bgp/bgp_factory.h"
@@ -161,7 +162,6 @@ protected:
         } else {
             snprintf(nh_addr, sizeof(nh_addr), "192.168.1.1%d", idx);
         }
-        bool found = false;
         BOOST_FOREACH(const autogen::EnetNextHopType &nh, olist.next_hop) {
             if (nh.address == nh_addr)
                 return false;

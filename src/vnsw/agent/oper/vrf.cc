@@ -95,11 +95,11 @@ bool VrfEntry::UpdateVxlanId(Agent *agent, uint32_t new_vxlan_id) {
     Layer2AgentRouteTable *table = static_cast<Layer2AgentRouteTable *>
         (rt_table_db_[Agent::LAYER2]);
     if (vxlan_id_ != VxLanTable::kInvalidvxlan_id) {
-        table->Delete(agent->local_vm_peer(), GetName(), vxlan_id_,
-                      agent->vrrp_mac());
+        table->Delete(agent->local_vm_peer(), GetName(),
+                      agent->vrrp_mac(), IpAddress(), 0);
         if (intf) {
-            table->Delete(agent->local_vm_peer(), GetName(), vxlan_id_,
-                          intf->mac());
+            table->Delete(agent->local_vm_peer(), GetName(), intf->mac(),
+                          IpAddress(), 0);
         }
     }
 

@@ -11,6 +11,7 @@
 #include "db/db_entry.h"
 #include "db/db_table.h"
 #include "ifmap/ifmap_node.h"
+#include "net/address_util.h"
 
 #include <cfg/cfg_init.h>
 #include <cfg/cfg_interface.h>
@@ -57,7 +58,7 @@ VmInterface::VmInterface(const boost::uuids::uuid &uuid) :
     sg_list_(), floating_ip_list_(), service_vlan_list_(), static_route_list_(),
     allowed_address_pair_list_(), vrf_assign_rule_list_(),
     vrf_assign_acl_(NULL), vm_ip_gw_addr_(0), vm_ip6_gw_addr_(),
-    sub_type_(VmInterface::NONE), configurer_(0), ifmap_node_(NULL),
+    sub_type_(VmInterface::NONE), configurer_(0),
     subnet_(0), subnet_plen_(0) {
     ipv4_active_ = false;
     ipv6_active_ = false;
@@ -84,7 +85,7 @@ VmInterface::VmInterface(const boost::uuids::uuid &uuid,
     sg_list_(), floating_ip_list_(), service_vlan_list_(), static_route_list_(),
     allowed_address_pair_list_(), vrf_assign_rule_list_(),
     vrf_assign_acl_(NULL), sub_type_(VmInterface::NONE), configurer_(0),
-    ifmap_node_(NULL), subnet_(0), subnet_plen_(0) {
+    subnet_(0), subnet_plen_(0) {
     ipv4_active_ = false;
     ipv6_active_ = false;
     l2_active_ = false;
@@ -543,7 +544,7 @@ bool InterfaceTable::VmiIFNodeToReq(IFMapNode *node, DBRequest &req) {
         if (interface_sub_type == VmInterface::NOVA) {
             req.oper = DBRequest::DB_ENTRY_ADD_CHANGE;
             req.key.reset(new VmInterfaceKey(AgentKey::RESYNC, u, ""));
-            req.data.reset(new VmInterfaceConfigData(NULL));
+            req.data.reset(new VmInterfaceConfigData(NULL, NULL));
             return true;
         } else {
             VmInterface::Delete(this, u, VmInterface::CONFIG);
@@ -566,8 +567,8 @@ bool InterfaceTable::VmiIFNodeToReq(IFMapNode *node, DBRequest &req) {
                                  cfg->display_name());
     }
 
-    VmInterfaceConfigData *data = new VmInterfaceConfigData(NULL);
-    data->ifmap_node_ = node;
+    VmInterfaceConfigData *data = new VmInterfaceConfigData(NULL, NULL);
+    data->SetIFMapNode(agent(), node);
     //Extract the local preference
     if (cfg->IsPropertySet(VirtualMachineInterface::PROPERTIES)) {
         autogen::VirtualMachineInterfacePropertiesType prop = cfg->properties();
@@ -948,22 +949,28 @@ void VmInterface::UpdateVxLan() {
 }
 
 void VmInterface::UpdateL2(bool old_l2_active, VrfEntry *old_vrf, int old_vxlan_id,
-                           bool force_update, bool policy_change) {
+                           bool force_update, bool policy_change,
+                           const Ip4Address &old_v4_addr,
+                           const Ip6Address &old_v6_addr) {
     UpdateVxLan();
     UpdateL2NextHop(old_l2_active);
     //Update label only if new entry is to be created, so
     //no force update on same.
     UpdateL2TunnelId(false, policy_change);
-    UpdateL2InterfaceRoute(old_l2_active, force_update);
+    UpdateL2InterfaceRoute(old_l2_active, force_update, old_vrf, old_v4_addr,
+                           old_v6_addr);
 }
 
 void VmInterface::UpdateL2(bool force_update) {
-    UpdateL2(l2_active_, vrf_.get(), vxlan_id_, force_update, false);
+    UpdateL2(l2_active_, vrf_.get(), vxlan_id_, force_update, false, ip_addr_,
+             ip6_addr_);
 }
 
-void VmInterface::DeleteL2(bool old_l2_active, VrfEntry *old_vrf) {
+void VmInterface::DeleteL2(bool old_l2_active, VrfEntry *old_vrf,
+                           const Ip4Address &old_v4_addr,
+                           const Ip6Address &old_v6_addr) {
     DeleteL2TunnelId();
-    DeleteL2InterfaceRoute(old_l2_active, old_vrf);
+    DeleteL2InterfaceRoute(old_l2_active, old_vrf, old_v4_addr, old_v6_addr);
     DeleteL2NextHop(old_l2_active);
 }
 
@@ -1026,9 +1033,9 @@ void VmInterface::ApplyConfig(bool old_ipv4_active, bool old_l2_active, bool old
     // Add/Del/Update L2 
     if (l2_active_ && layer2_forwarding_) {
         UpdateL2(old_l2_active, old_vrf, old_vxlan_id, 
-                 force_update, policy_change);
+                 force_update, policy_change, old_addr, old_v6_addr);
     } else if (old_l2_active) {
-        DeleteL2(old_l2_active, old_vrf);
+        DeleteL2(old_l2_active, old_vrf, old_addr, old_v6_addr);
     }
 
     if (old_l2_active != l2_active_) {
@@ -1104,10 +1111,8 @@ bool VmInterfaceConfigData::OnDelete(const InterfaceTable *table,
         return true;
 
     vmi->ResetConfigurer(VmInterface::CONFIG);
-    VmInterfaceConfigData data(NULL);
+    VmInterfaceConfigData data(NULL, NULL);
     vmi->Resync(table, &data);
-    if (ifmap_node_ != NULL)
-        table->operdb()->dependency_manager()->ResetObject(ifmap_node_);
     return true;
 }
 
@@ -1320,14 +1325,6 @@ bool VmInterface::CopyConfig(const InterfaceTable *table,
             (table->agent()->interface_table()->FindActiveEntry(&key));
     }
 
-    if (ifmap_node_ != data->ifmap_node_) {
-        if (ifmap_node_ != NULL)
-            table->operdb()->dependency_manager()->ResetObject(ifmap_node_);
-        ifmap_node_ = data->ifmap_node_;
-        if (ifmap_node_)
-            table->operdb()->dependency_manager()->SetObject(ifmap_node_, this);
-    }
-
     if (table) {
         if (os_index_ == kInvalidIndex) {
             GetOsParams(table->agent());
@@ -1343,7 +1340,7 @@ bool VmInterface::CopyConfig(const InterfaceTable *table,
 // VmInterfaceNovaData routines
 /////////////////////////////////////////////////////////////////////////////
 VmInterfaceNovaData::VmInterfaceNovaData() :
-    VmInterfaceData(NULL, NOVA),
+    VmInterfaceData(NULL, NULL, NOVA),
     ipv4_addr_(),
     ipv6_addr_(),
     mac_addr_(),
@@ -1364,7 +1361,7 @@ VmInterfaceNovaData::VmInterfaceNovaData(const Ip4Address &ipv4_addr,
                                          const std::string &parent,
                                          uint16_t tx_vlan_id,
                                          uint16_t rx_vlan_id) :
-    VmInterfaceData(NULL, NOVA),
+    VmInterfaceData(NULL, NULL, NOVA),
     ipv4_addr_(ipv4_addr),
     ipv6_addr_(ipv6_addr),
     mac_addr_(mac_addr),
@@ -1404,7 +1401,7 @@ bool VmInterfaceNovaData::OnDelete(const InterfaceTable *table,
         return true;
 
     vmi->ResetConfigurer(VmInterface::CONFIG);
-    VmInterfaceConfigData data(NULL);
+    VmInterfaceConfigData data(NULL, NULL);
     vmi->Resync(table, &data);
     vmi->ResetConfigurer(VmInterface::EXTERNAL);
     return true;
@@ -2341,26 +2338,36 @@ void VmInterface::DeleteL2TunnelId() {
     DeleteL2MplsLabel();
 }
 
-void VmInterface::UpdateL2InterfaceRoute(bool old_l2_active, bool force_update) {
+void VmInterface::UpdateL2InterfaceRoute(bool old_l2_active, bool force_update,
+                                         VrfEntry *old_vrf,
+                                         const Ip4Address &old_v4_addr,
+                                         const Ip6Address &old_v6_addr) {
     if (l2_active_ == false)
         return;
+
+    if (ip_addr_ != old_v4_addr) {
+        force_update = true;
+        DeleteL2InterfaceRoute(true, old_vrf, old_v4_addr, Ip6Address());
+    }
+
+    if (ip6_addr_ != old_v6_addr) {
+        force_update = true;
+        DeleteL2InterfaceRoute(true, old_vrf, Ip4Address(), old_v6_addr);
+    }
 
     if (old_l2_active && force_update == false)
         return;
 
-    const string &vrf_name = vrf_.get()->GetName();
-
     assert(peer_.get());
-    SecurityGroupList sg_id_list;
-    CopySgIdList(&sg_id_list);
-    Layer2AgentRouteTable::AddLocalVmRoute(peer_.get(), GetUuid(),
-                                           vn_->GetName(), sg_id_list,
-                                           vrf_name, l2_label_,
-                                           vxlan_id_, MacAddress::FromString(vm_mac()),
-                                           ip_addr(), 0, 32);
+    Layer2AgentRouteTable *table = static_cast<Layer2AgentRouteTable *>
+        (vrf_->GetLayer2RouteTable());
+
+    table->AddLocalVmRoute(peer_.get(), this);
 }
 
-void VmInterface::DeleteL2InterfaceRoute(bool old_l2_active, VrfEntry *old_vrf) {
+void VmInterface::DeleteL2InterfaceRoute(bool old_l2_active, VrfEntry *old_vrf,
+                                         const Ip4Address &old_v4_addr,
+                                         const Ip6Address &old_v6_addr) {
     if (old_l2_active == false)
         return;
 
@@ -2369,8 +2376,11 @@ void VmInterface::DeleteL2InterfaceRoute(bool old_l2_active, VrfEntry *old_vrf) 
         VxLanId::Delete(vxlan_id_);
         vxlan_id_ = 0;
     }
-    Layer2AgentRouteTable::Delete(peer_.get(), old_vrf->GetName(),
-                                  vxlan_id_, MacAddress::FromString(vm_mac_));
+
+    Layer2AgentRouteTable *table = static_cast<Layer2AgentRouteTable *>
+        (old_vrf->GetLayer2RouteTable());
+    table->DelLocalVmRoute(peer_.get(), old_vrf->GetName(), this, old_v4_addr,
+                           old_v6_addr);
 }
 
 // Copy the SG List for VM Interface. Used to add route for interface
@@ -3383,7 +3393,7 @@ void VmInterface::Delete(InterfaceTable *table, const uuid &intf_uuid,
     req.key.reset(new VmInterfaceKey(AgentKey::ADD_DEL_CHANGE, intf_uuid, ""));
 
     if (configurer == VmInterface::CONFIG) {
-        req.data.reset(new VmInterfaceConfigData(NULL));
+        req.data.reset(new VmInterfaceConfigData(NULL, NULL));
     } else if (configurer == VmInterface::EXTERNAL) {
         req.data.reset(new VmInterfaceNovaData());
     } else {

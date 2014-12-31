@@ -482,8 +482,10 @@ private:
                   bool old_ipv6_active, const Ip6Address &old_v6_addr,
                   const Ip4Address &old_subnet, const uint8_t old_subnet_plen);
     void UpdateL2(bool old_l2_active, VrfEntry *old_vrf, int old_vxlan_id,
-                  bool force_update, bool policy_change);
-    void DeleteL2(bool old_l2_active, VrfEntry *old_vrf);
+                  bool force_update, bool policy_change,
+                  const Ip4Address &old_addr, const Ip6Address &old_v6_addr);
+    void DeleteL2(bool old_l2_active, VrfEntry *old_vrf,
+                  const Ip4Address &old_addr, const Ip6Address &old_v6_addr);
     void UpdateVxLan();
 
     void AllocL3MplsLabel(bool force_update, bool policy_change);
@@ -534,8 +536,13 @@ private:
     void DeleteSecurityGroup();
     void UpdateL2TunnelId(bool force_update, bool policy_change);
     void DeleteL2TunnelId();
-    void UpdateL2InterfaceRoute(bool old_l2_active, bool force_update);
-    void DeleteL2InterfaceRoute(bool old_l2_active, VrfEntry *old_vrf);
+    void UpdateL2InterfaceRoute(bool old_l2_active, bool force_update,
+                                VrfEntry *vrf,
+                                const Ip4Address &old_addr,
+                                const Ip6Address &old_v6_addr);
+    void DeleteL2InterfaceRoute(bool old_l2_active, VrfEntry *old_vrf,
+                                const Ip4Address &old_v4_addr,
+                                const Ip6Address &old_v6_addr);
 
     void DeleteL2Route(const std::string &vrf_name,
                        const MacAddress &mac);
@@ -594,7 +601,6 @@ private:
     Ip6Address vm_ip6_gw_addr_;
     VmInterface::SubType sub_type_;
     uint8_t configurer_;
-    IFMapNode *ifmap_node_;
     Ip4Address subnet_;
     uint8_t subnet_plen_;
     DISALLOW_COPY_AND_ASSIGN(VmInterface);
@@ -638,8 +644,8 @@ struct VmInterfaceData : public InterfaceData {
         OS_OPER_STATE
     };
 
-    VmInterfaceData(IFMapNode *node, Type type) :
-        InterfaceData(node), type_(type) {
+    VmInterfaceData(Agent *agent, IFMapNode *node, Type type) :
+        InterfaceData(agent, node), type_(type) {
         VmPortInit();
     }
     virtual ~VmInterfaceData() { }
@@ -662,7 +668,7 @@ struct VmInterfaceData : public InterfaceData {
 // Structure used when type=IP_ADDR. Used to update IP-Address of VM-Interface
 // The IP Address is picked up from the DHCP Snoop table
 struct VmInterfaceIpAddressData : public VmInterfaceData {
-    VmInterfaceIpAddressData() : VmInterfaceData(NULL, IP_ADDR) { }
+    VmInterfaceIpAddressData() : VmInterfaceData(NULL, NULL, IP_ADDR) { }
     virtual ~VmInterfaceIpAddressData() { }
     virtual bool OnResync(const InterfaceTable *table, VmInterface *vmi,
                           bool *sg_changed, bool *ecmp_changed,
@@ -672,7 +678,8 @@ struct VmInterfaceIpAddressData : public VmInterfaceData {
 // Structure used when type=OS_OPER_STATE Used to update interface os oper-state
 // The current oper-state is got by querying the device
 struct VmInterfaceOsOperStateData : public VmInterfaceData {
-    VmInterfaceOsOperStateData() : VmInterfaceData(NULL, OS_OPER_STATE) { }
+    VmInterfaceOsOperStateData() :
+        VmInterfaceData(NULL, NULL, OS_OPER_STATE) { }
     virtual ~VmInterfaceOsOperStateData() { }
     virtual bool OnResync(const InterfaceTable *table, VmInterface *vmi,
                           bool *sg_changed, bool *ecmp_changed,
@@ -682,7 +689,7 @@ struct VmInterfaceOsOperStateData : public VmInterfaceData {
 // Structure used when type=MIRROR. Used to update IP-Address of VM-Interface
 struct VmInterfaceMirrorData : public VmInterfaceData {
     VmInterfaceMirrorData(bool mirror_enable, const std::string &analyzer_name):
-        VmInterfaceData(NULL, MIRROR), mirror_enable_(mirror_enable),
+        VmInterfaceData(NULL, NULL, MIRROR), mirror_enable_(mirror_enable),
         analyzer_name_(analyzer_name) {
     }
     virtual ~VmInterfaceMirrorData() { }
@@ -696,8 +703,9 @@ struct VmInterfaceMirrorData : public VmInterfaceData {
 
 // Definition for structures when request queued from IFMap config.
 struct VmInterfaceConfigData : public VmInterfaceData {
-    VmInterfaceConfigData(IFMapNode *node) :
-        VmInterfaceData(node, CONFIG), addr_(0), ip6_addr_(), vm_mac_(""),
+    VmInterfaceConfigData(Agent *agent, IFMapNode *node) :
+        VmInterfaceData(agent, node, CONFIG), addr_(0), ip6_addr_(),
+        vm_mac_(""),
         cfg_name_(""), vm_uuid_(), vm_name_(), vn_uuid_(), vrf_name_(""),
         fabric_port_(true), need_linklocal_ip_(false), layer2_forwarding_(true),
         layer3_forwarding_(true), mirror_enable_(false), ecmp_(false),
@@ -706,7 +714,7 @@ struct VmInterfaceConfigData : public VmInterfaceData {
         mirror_direction_(Interface::UNKNOWN), sg_list_(),
         floating_ip_list_(), service_vlan_list_(), static_route_list_(),
         allowed_address_pair_list_(), sub_type_(VmInterface::NONE),
-        parent_(""), ifmap_node_(NULL), subnet_(0), subnet_plen_(0),
+        parent_(""), subnet_(0), subnet_plen_(0),
         rx_vlan_id_(VmInterface::kInvalidVlanId),
         tx_vlan_id_(VmInterface::kInvalidVlanId) {
     }
@@ -752,7 +760,6 @@ struct VmInterfaceConfigData : public VmInterfaceData {
     VmInterface::AllowedAddressPairList allowed_address_pair_list_;
     VmInterface::SubType sub_type_;
     std::string parent_;
-    IFMapNode *ifmap_node_;
     Ip4Address subnet_;
     uint8_t subnet_plen_;
     uint16_t rx_vlan_id_;

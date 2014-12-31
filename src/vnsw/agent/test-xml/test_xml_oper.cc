@@ -7,7 +7,6 @@
 #include <fstream>
 #include <pugixml/pugixml.hpp>
 #include <boost/uuid/uuid.hpp>
-#include <boost/uuid/string_generator.hpp>
 
 #include <test/test_cmn_util.h>
 #include <pkt/test/test_pkt_util.h>
@@ -969,7 +968,7 @@ bool AgentUtXmlL2Route::Run() {
     Layer2AgentRouteTable::AddRemoteVmRouteReq(NULL, vrf_,
                                                MacAddress::FromString(mac_),
                                                Ip4Address::from_string(ip_),
-                                               vxlan_id_, 48, NULL);
+                                               0, NULL);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -999,6 +998,11 @@ bool AgentUtXmlL2RouteValidate::ReadXml() {
         return false;
     }
 
+    string addr = "";
+    GetStringAttribute(node(), "ip", &addr);
+    boost::system::error_code ec;
+    ip_ = IpAddress::from_string(addr, ec);
+
     GetUintAttribute(node(), "vxlan_id", &vxlan_id_);
     GetStringAttribute(node(), "tunnel-dest", &tunnel_dest_);
     GetStringAttribute(node(), "tunnel-type", &tunnel_type_);
@@ -1011,7 +1015,7 @@ bool AgentUtXmlL2RouteValidate::Validate() {
     Agent *agent = Agent::GetInstance();
     Layer2RouteEntry *rt =
         Layer2AgentRouteTable::FindRoute(agent, vrf_,
-                                         MacAddress::FromString(mac_));
+                                         MacAddress::FromString(mac_), ip_);
     if (present() == false)
         return (rt == NULL);
 

@@ -2,8 +2,8 @@
  * Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
  */
 
-#include <uve/interface_stats_io_context.h>
-#include <uve/agent_stats_collector.h>
+#include <vrouter/stats_collector/interface_stats_io_context.h>
+#include <vrouter/stats_collector/agent_stats_collector.h>
 #include <ksync/ksync_types.h>
 
 InterfaceStatsIoContext::InterfaceStatsIoContext(int msg_len, char *msg,
@@ -19,7 +19,7 @@ InterfaceStatsIoContext::~InterfaceStatsIoContext() {
 void InterfaceStatsIoContext::Handler() {
     AgentStatsSandeshContext *ctx = static_cast<AgentStatsSandeshContext *>
                                                                         (ctx_);
-    AgentStatsCollector *collector = ctx->collector();
+    AgentStatsCollector *collector = ctx->agent()->stats_collector();
     /* (1) Reset the marker for query during next timer interval, if there is
      *     no additional records for the current query
      * (2) If there are additional interfaces to be queried, send DUMP request

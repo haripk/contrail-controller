@@ -1371,7 +1371,7 @@ public:
         return ret;
     }
 
-    virtual bool Resync(DBEntry *entry, DBRequest *req) {
+    virtual bool Resync(DBEntry *entry, const DBRequest *req) {
         NextHop *nh = static_cast<NextHop *>(entry);
         bool ret = nh->Change(req);
         nh->SendObjectLog(AgentLogEvent::RESYNC);

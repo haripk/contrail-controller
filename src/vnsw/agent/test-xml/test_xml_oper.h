@@ -327,6 +327,7 @@ private:
     std::string mac_;
     std::string vrf_;
     uint16_t vxlan_id_;
+    IpAddress ip_;
     std::string vn_;
     std::string nh_type_;
     std::string tunnel_dest_;

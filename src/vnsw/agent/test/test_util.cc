@@ -19,9 +19,8 @@ int test_tap_fd[MAX_VNET];
 
 uuid MakeUuid(int id) {
     char str[50];
-    boost::uuids::string_generator gen;
-    sprintf(str, "000000000000000000000000000000%02x", id);
-    boost::uuids::uuid u1 = gen(std::string(str));
+    sprintf(str, "00000000-0000-0000-0000-0000000000%02x", id);
+    boost::uuids::uuid u1 = StringToUuid(std::string(str));
 
     return u1;
 }
@@ -617,9 +616,8 @@ bool VmPortGetStats(PortInfo *input, int id, uint32_t & bytes, uint32_t & pkts) 
         return false;
 
     AgentUve *uve = static_cast<AgentUve *>(Agent::GetInstance()->uve());
-    AgentStatsCollectorTest *collector = static_cast<AgentStatsCollectorTest *>
-        (uve->agent_stats_collector());
-    const AgentStatsCollector::InterfaceStats *st = collector->GetInterfaceStats(intf);
+    StatsManager *sm  = uve->stats_manager();
+    const StatsManager::InterfaceStats *st = sm->GetInterfaceStats(intf);
     if (st == NULL)
         return false;
 
@@ -636,9 +634,8 @@ bool VrfStatsMatch(int vrf_id, std::string vrf_name, bool stats_match,
                    uint64_t l3_mcast_composites, uint64_t multi_proto_composites,
                    uint64_t encaps, uint64_t l2_encaps) {
     AgentUve *uve = static_cast<AgentUve *>(Agent::GetInstance()->uve());
-    AgentStatsCollectorTest *collector = static_cast<AgentStatsCollectorTest *>
-        (uve->agent_stats_collector());
-    const AgentStatsCollector::VrfStats *st = collector->GetVrfStats(vrf_id);
+    StatsManager *sm  = uve->stats_manager();
+    const StatsManager::VrfStats *st = sm->GetVrfStats(vrf_id);
     if (st == NULL) {
         return false;
     }
@@ -684,9 +681,8 @@ bool VrfStatsMatchPrev(int vrf_id, uint64_t discards, uint64_t resolves,
                    uint64_t multi_proto_composites, uint64_t encaps,
                    uint64_t l2_encaps) {
     AgentUve *uve = static_cast<AgentUve *>(Agent::GetInstance()->uve());
-    AgentStatsCollectorTest *collector = static_cast<AgentStatsCollectorTest *>
-        (uve->agent_stats_collector());
-    const AgentStatsCollector::VrfStats *st = collector->GetVrfStats(vrf_id);
+    StatsManager *sm  = uve->stats_manager();
+    const StatsManager::VrfStats *st = sm->GetVrfStats(vrf_id);
     if (st == NULL) {
         return false;
     }
@@ -747,7 +743,8 @@ bool VmPortStats(PortInfo *input, int id, uint32_t bytes, uint32_t pkts) {
         return false;
 
     AgentUve *uve = static_cast<AgentUve *>(Agent::GetInstance()->uve());
-    const AgentStatsCollector::InterfaceStats *st = uve->agent_stats_collector()->GetInterfaceStats(intf);
+    StatsManager *sm  = uve->stats_manager();
+    const StatsManager::InterfaceStats *st = sm->GetInterfaceStats(intf);
     if (st == NULL)
         return false;
 
@@ -759,7 +756,8 @@ bool VmPortStats(PortInfo *input, int id, uint32_t bytes, uint32_t pkts) {
 bool VmPortStatsMatch(Interface *intf, uint32_t ibytes, uint32_t ipkts,
                       uint32_t obytes, uint32_t opkts) {
     AgentUve *uve = static_cast<AgentUve *>(Agent::GetInstance()->uve());
-    const AgentStatsCollector::InterfaceStats *st = uve->agent_stats_collector()->GetInterfaceStats(intf);
+    StatsManager *sm  = uve->stats_manager();
+    const StatsManager::InterfaceStats *st = sm->GetInterfaceStats(intf);
     EXPECT_TRUE(st != NULL);
     if (st == NULL)
         return false;
@@ -1047,10 +1045,16 @@ bool RouteFindV6(const string &vrf_name, const string &addr, int plen) {
     return RouteFindV6(vrf_name, Ip6Address::from_string(addr), plen);
 }
 
-bool L2RouteFind(const string &vrf_name, const MacAddress &mac) {
+bool L2RouteFind(const string &vrf_name, const MacAddress &mac,
+                 const IpAddress &ip_addr) {
     Layer2RouteEntry *route =
-        Layer2AgentRouteTable::FindRoute(Agent::GetInstance(), vrf_name, mac);
+        Layer2AgentRouteTable::FindRoute(Agent::GetInstance(), vrf_name, mac,
+                                         ip_addr);
     return (route != NULL);
+}
+
+bool L2RouteFind(const string &vrf_name, const MacAddress &mac) {
+    return L2RouteFind(vrf_name, mac, IpAddress());
 }
 
 bool MCRouteFind(const string &vrf_name, const Ip4Address &grp_addr,
@@ -1091,18 +1095,24 @@ bool MCRouteFind(const string &vrf_name, const string &grp_addr) {
 
 }
 
-Layer2RouteEntry *L2RouteGet(const string &vrf_name,
-                             const MacAddress &mac) {
-    VrfEntry *vrf = Agent::GetInstance()->vrf_table()->FindVrfFromName(vrf_name);
+Layer2RouteEntry *L2RouteGet(const string &vrf_name, const MacAddress &mac,
+                             const IpAddress &ip_addr) {
+    Agent *agent = Agent::GetInstance();
+    VrfEntry *vrf = agent->vrf_table()->FindVrfFromName(vrf_name);
     if (vrf == NULL)
         return NULL;
 
-    Layer2RouteKey key(Agent::GetInstance()->local_vm_peer(), vrf_name, mac, 0);
+    Layer2RouteKey key(agent->local_vm_peer(), vrf_name, mac, ip_addr, 0);
     Layer2RouteEntry *route =
         static_cast<Layer2RouteEntry *>
         (static_cast<Layer2AgentRouteTable *>(vrf->
              GetLayer2RouteTable())->FindActiveEntry(&key));
     return route;
+}
+
+Layer2RouteEntry *L2RouteGet(const string &vrf_name,
+                             const MacAddress &mac) {
+    return L2RouteGet(vrf_name, mac, IpAddress());
 }
 
 InetUnicastRouteEntry* RouteGet(const string &vrf_name, const Ip4Address &addr, int plen) {
@@ -1182,7 +1192,7 @@ bool VlanNhFind(int id, uint16_t tag) {
 bool Layer2TunnelRouteAdd(const Peer *peer, const string &vm_vrf,
                           TunnelType::TypeBmap bmap, const Ip4Address &server_ip,
                           uint32_t label, MacAddress &remote_vm_mac,
-                          const Ip4Address &vm_addr, uint8_t plen) {
+                          const IpAddress &vm_addr, uint8_t plen) {
     ControllerVmRoute *data =
         ControllerVmRoute::MakeControllerVmRoute(peer,
                               Agent::GetInstance()->fabric_vrf_name(),
@@ -1191,7 +1201,7 @@ bool Layer2TunnelRouteAdd(const Peer *peer, const string &vm_vrf,
                               bmap, label, "", SecurityGroupList(),
                               PathPreference());
     Layer2AgentRouteTable::AddRemoteVmRouteReq(peer, vm_vrf, remote_vm_mac,
-                                        vm_addr, 0, plen, data);
+                                        vm_addr, 0, data);
     return true;
 }
 
@@ -1202,7 +1212,7 @@ bool Layer2TunnelRouteAdd(const Peer *peer, const string &vm_vrf,
     boost::system::error_code ec;
     Layer2TunnelRouteAdd(peer, vm_vrf, bmap,
                         Ip4Address::from_string(server_ip, ec), label, remote_vm_mac,
-                         Ip4Address::from_string(vm_addr, ec), plen);
+                        IpAddress::from_string(vm_addr, ec), plen);
 }
 
 bool EcmpTunnelRouteAdd(const Peer *peer, const string &vrf_name, const Ip4Address &vm_ip,

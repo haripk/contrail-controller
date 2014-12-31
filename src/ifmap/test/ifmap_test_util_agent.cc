@@ -2,6 +2,7 @@
 
 #include <map>
 #include <boost/uuid/uuid.hpp>
+#include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/random_generator.hpp>
 
 #include "db/db.h"
@@ -119,8 +120,7 @@ void IFMapMsgPropertySet(DB *db,
         data->content.get());
     autogen::IdPermsType id_perms;
     id_perms.Clear();
-    boost::uuids::string_generator gen;
-    UuidTypeSet(gen(id), &id_perms.uuid);
+    UuidTypeSet(StringToUuid(id), &id_perms.uuid);
     mapid->SetProperty("id-perms", &id_perms);
 
     for (std::map<std::string, AutogenProperty *>::const_iterator iter =

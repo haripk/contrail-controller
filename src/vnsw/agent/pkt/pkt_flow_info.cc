@@ -56,7 +56,7 @@ void PktFlowInfo::UpdateRoute(const AgentRoute **rt, const VrfEntry *vrf,
     if (l3_flow) {
         *rt = flow_table->GetUcRoute(vrf, ip);
     } else {
-        *rt = flow_table->GetL2Route(vrf, mac);
+        *rt = flow_table->GetL2Route(vrf, mac, ip);
     }
     if (*rt == NULL)
         ref_map[vrf->vrf_id()] = 0;

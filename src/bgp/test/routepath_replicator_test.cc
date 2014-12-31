@@ -55,6 +55,9 @@ public:
     virtual IPeerDebugStats *peer_stats() {
         return NULL;
     }
+    virtual const IPeerDebugStats *peer_stats() const {
+        return NULL;
+    }
     virtual bool IsReady() const {
         return true;
     }
@@ -1822,7 +1825,6 @@ TEST_F(ReplicationTest, OriginVn3) {
     NetworkConfig(instance_names, connections);
     task_util::WaitForIdle();
     TASK_UTIL_EXPECT_NE(0, GetInstanceOriginVnIndex("blue"));
-    int blue_vn_idx = GetInstanceOriginVnIndex("blue");
 
     // Add another target to blue instance.
     AddInstanceRouteTarget("blue", "target:64496:101");

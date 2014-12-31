@@ -2,8 +2,8 @@
  * Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
  */
 
-#include <uve/vrf_stats_io_context.h>
-#include <uve/agent_stats_collector.h>
+#include <vrouter/stats_collector/vrf_stats_io_context.h>
+#include <vrouter/stats_collector/agent_stats_collector.h>
 #include <uve/agent_uve.h>
 #include <uve/vn_uve_table.h>
 #include <ksync/ksync_types.h>
@@ -11,9 +11,8 @@
 void VrfStatsIoContext::Handler() {
     AgentStatsSandeshContext *ctx = static_cast<AgentStatsSandeshContext *>
                                                                        (ctx_);
-    AgentStatsCollector *collector = ctx->collector();
     VnUveTable *vt = static_cast<VnUveTable *>
-        (collector->agent()->uve()->vn_uve_table());
+        (ctx->agent()->uve()->vn_uve_table());
     vt->SendVnStats(true);
     /* Reset the marker for query during next timer interval, if there is
      * no additional records for the current query */

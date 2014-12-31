@@ -3,6 +3,7 @@
  */
 
 #include <boost/assign/list_of.hpp>
+#include <boost/foreach.hpp>
 
 #include "base/test/task_test_util.h"
 #include "bgp/bgp_factory.h"
@@ -346,7 +347,7 @@ protected:
         IFMapServerParser::GetInstance("schema")->MetadataClear("schema");
     }
 
-    void VerifyAllPeerUp(BgpServerTest *server, int num) {
+    void VerifyAllPeerUp(BgpServerTest *server, uint32_t num) {
         TASK_UTIL_EXPECT_EQ_MSG(num, server->num_bgp_peer(),
                                 "Wait for all peers to get configured");
         TASK_UTIL_EXPECT_EQ_MSG(num, server->NumUpPeer(),

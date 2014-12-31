@@ -72,8 +72,7 @@ private:
     string address_string_;
     TunnelType::Type tunnel_type_;
     bool wait_for_traffic_;
-    IpAddress evpn_ip4_;
-    IpAddress evpn_ip6_;
+    IpAddress evpn_ip_;
     bool flood_;
     DISALLOW_COPY_AND_ASSIGN(RouteKSyncEntry);
 };

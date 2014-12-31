@@ -639,11 +639,15 @@ public:
     }
 
     DBTableBase::ListenerId nh_listener_id();
-    AgentRoute *GetL2Route(const VrfEntry *entry, const MacAddress &mac);
+    AgentRoute *GetL2Route(const VrfEntry *entry, const MacAddress &mac,
+                           const IpAddress &ip_addr);
     AgentRoute *GetUcRoute(const VrfEntry *entry, const IpAddress &addr);
     static const SecurityGroupList &default_sg_list() {return default_sg_list_;}
     bool ValidFlowMove(const FlowEntry *new_flow,
                        const FlowEntry *old_flow) const;
+    // Update flow port bucket information
+    void NewFlow(const FlowEntry *flow);
+    void DeleteFlow(const FlowEntry *flow);
     friend class FlowStatsCollector;
     friend class PktSandeshFlow;
     friend class FetchFlowRecord;

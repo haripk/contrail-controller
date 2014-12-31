@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
-#include <boost/uuid/string_generator.hpp>
 #include <boost/program_options.hpp>
 #include <base/task.h>
 #include <base/task_trigger.h>
@@ -57,7 +56,7 @@
 #include <uve/stats_collector.h>
 #include <uve/agent_uve.h>
 #include <uve/flow_stats_collector.h>
-#include <uve/agent_stats_collector.h>
+#include <vrouter/stats_collector/agent_stats_collector.h>
 #include <uve/vrouter_stats_collector.h>
 #include <uve/test/agent_stats_collector_test.h>
 #include "pkt_gen.h"
@@ -140,9 +139,7 @@ public:
     FlowAge() : Task((TaskScheduler::GetInstance()->GetTaskId("FlowAge")), 0) {
     }
     virtual bool Run() {
-        AgentUveBase *uve = Agent::GetInstance()->uve();
-        AgentUve *f_uve = static_cast<AgentUve *>(uve);
-        f_uve->flow_stats_collector()->Run();
+        Agent::GetInstance()->flow_stats_collector()->Run();
         return true;
     }
 };
@@ -283,9 +280,8 @@ public:
     void IfStatsTimerWait(int count) {
         int i = 0;
 
-        AgentUve *uve = static_cast<AgentUve *>(Agent::GetInstance()->uve());
         AgentStatsCollectorTest *collector = static_cast<AgentStatsCollectorTest *>
-            (uve->agent_stats_collector());
+            (Agent::GetInstance()->stats_collector());
         while (collector->interface_stats_responses_ < count) {
             if (i++ < 1000) {
                 usleep(1000);
@@ -300,9 +296,8 @@ public:
     void VrfStatsTimerWait(int count) {
         int i = 0;
 
-        AgentUve *uve = static_cast<AgentUve *>(Agent::GetInstance()->uve());
         AgentStatsCollectorTest *collector = static_cast<AgentStatsCollectorTest *>
-            (uve->agent_stats_collector());
+            (Agent::GetInstance()->stats_collector());
         while (collector->vrf_stats_responses_ <= count) {
             if (i++ < 1000) {
                 usleep(1000);
@@ -317,9 +312,8 @@ public:
     void DropStatsTimerWait(int count) {
         int i = 0;
 
-        AgentUve *uve = static_cast<AgentUve *>(Agent::GetInstance()->uve());
         AgentStatsCollectorTest *collector = static_cast<AgentStatsCollectorTest *>
-            (uve->agent_stats_collector());
+            (Agent::GetInstance()->stats_collector());
         while(collector->drop_stats_responses_ <= count) {
             if (i++ < 1000) {
                 usleep(1000);

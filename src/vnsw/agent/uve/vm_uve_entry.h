@@ -6,7 +6,7 @@
 #define vnsw_agent_vm_uve_entry_h
 
 #include <uve/vm_uve_entry_base.h>
-#include <uve/agent_stats_collector.h>
+#include <uve/stats_manager.h>
 
 //The class that defines data-structures to store VirtualMachine information
 //required for sending VirtualMachine UVE.
@@ -23,7 +23,7 @@ public:
                                       Interface *intf);
 protected:
     uint64_t GetVmPortBandwidth
-        (AgentStatsCollector::InterfaceStats *s, bool dir_in) const;
+        (StatsManager::InterfaceStats *s, bool dir_in) const;
     L4PortBitmap port_bitmap_;
 private:
     bool SetVmPortBitmap(UveVirtualMachineAgent *uve);

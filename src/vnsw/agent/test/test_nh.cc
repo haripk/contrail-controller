@@ -1100,7 +1100,6 @@ TEST_F(CfgTest, EcmpNH_9) {
     InetUnicastRouteEntry *rt1 = RouteGet("vrf1", ip1, 32);
     EXPECT_TRUE(rt1->GetActiveNextHop()->GetType() == NextHop::COMPOSITE);
 
-    const NextHop *nh = rt1->GetActiveNextHop();
     //Change ip1 route nexthop to be unicast nexthop
     Inet4TunnelRouteAdd(bgp_peer, "vrf1", ip1, 32, remote_server_ip1,
                         TunnelType::AllType(), 8, "vn1",
@@ -1989,10 +1988,11 @@ TEST_F(CfgTest, Nexthop_keys) {
                         vhost_intf_key, 0, false, "", SecurityGroupList());
     client->WaitForIdle();
 
+    Ip4Address vm_ip = Ip4Address::from_string("1.1.1.10");
     MacAddress remote_vm_mac("00:00:01:01:01:11");
     Layer2TunnelRouteAdd(agent_->local_peer(), "vrf10", TunnelType::MplsType(),
                          Ip4Address::from_string("10.1.1.100"),
-                         1000, remote_vm_mac, Ip4Address::from_string("1.1.1.10"), 32);
+                         1000, remote_vm_mac, vm_ip, 32);
     client->WaitForIdle();
     Layer2RouteEntry *l2_rt = L2RouteGet("vrf10", remote_vm_mac);
     EXPECT_TRUE(l2_rt != NULL);
@@ -2006,7 +2006,8 @@ TEST_F(CfgTest, Nexthop_keys) {
     tnh->SetKey(tnh->GetDBRequestKey().get());
     DoNextHopSandesh();
     Layer2AgentRouteTable::DeleteReq(agent_->local_peer(),
-                                     "vrf10", remote_vm_mac, 0, NULL);
+                                     "vrf10", remote_vm_mac, IpAddress(vm_ip),
+                                     0);
     client->WaitForIdle();
 
     //CompositeNHKey
@@ -2276,7 +2277,6 @@ TEST_F(CfgTest, EcmpNH_18) {
     std::auto_ptr<const NextHopKey> nh_akey(nh_key);
     ComponentNHKeyPtr nh_data1(new ComponentNHKey(rt->GetActiveLabel(), nh_akey));
 
-    uint32_t label = rt->GetActiveLabel();
     ComponentNHKeyList comp_nh_list;
     //Insert new NH first and then existing route NH
     comp_nh_list.push_back(nh_data1);

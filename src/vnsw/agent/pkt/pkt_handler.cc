@@ -10,6 +10,7 @@
 #include <netinet/icmp6.h>
 
 #include "cmn/agent_cmn.h"
+#include "net/address_util.h"
 #include "oper/interface_common.h"
 #include "oper/nexthop.h"
 #include "oper/route_common.h"
@@ -655,7 +656,8 @@ bool PktHandler::IsToRDevice(uint32_t vrf_id, const IpAddress &ip) {
         return false;
 
     Layer2RouteEntry *rt = table->FindRoute(agent(), vrf->GetName(),
-                                            MacAddress::BroadcastMac());
+                                            MacAddress::BroadcastMac(),
+                                            IpAddress());
     if (rt == NULL)
         return false;
 
