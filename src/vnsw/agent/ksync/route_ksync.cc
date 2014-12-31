@@ -198,18 +198,6 @@ bool RouteKSyncEntry::BuildRouteFlags(const DBEntry *e,
     const InetUnicastRouteEntry *rt =
         static_cast<const InetUnicastRouteEntry *>(e);
 
-    //Inet6
-    if (rt_type_ == Agent::INET6_UNICAST) {
-        if (flood_ != rt->ipam_subnet_route()) {
-            flood_ = rt->ipam_subnet_route();
-            ret = true;
-        }
-
-        return ret;
-    }
-
-    //Route is V4
-    assert(rt_type_ == Agent::INET4_UNICAST);
     //resolve NH handling i.e. gateway
     if (rt->GetActiveNextHop()->GetType() == NextHop::RESOLVE) { 
         if (rt->vrf()->GetName() != agent->fabric_vrf_name()) {
@@ -322,7 +310,7 @@ bool RouteKSyncEntry::Sync(DBEntry *e) {
         ret = true;
     }
 
-    if (rt_type_ == Agent::INET4_UNICAST) {
+    if (rt_type_ == Agent::INET4_UNICAST || rt_type_ == Agent::INET6_UNICAST) {
         VrfKSyncObject *obj = ksync_obj_->ksync()->vrf_ksync_obj();
         const InetUnicastRouteEntry *uc_rt =
             static_cast<const InetUnicastRouteEntry *>(e);
