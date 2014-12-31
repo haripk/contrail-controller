@@ -42,6 +42,8 @@ RouteKSyncEntry::RouteKSyncEntry(RouteKSyncObject* obj,
     proxy_arp_(false), address_string_(entry->address_string_),
     tunnel_type_(entry->tunnel_type_),
     wait_for_traffic_(entry->wait_for_traffic_),
+    evpn_ip_(entry->evpn_ip_),
+    local_vm_peer_route_(entry->local_vm_peer_route_),
     flood_(entry->flood_) {
 }
 
@@ -49,6 +51,8 @@ RouteKSyncEntry::RouteKSyncEntry(RouteKSyncObject* obj, const AgentRoute *rt) :
     KSyncNetlinkDBEntry(kInvalidIndex), ksync_obj_(obj), 
     vrf_id_(rt->vrf_id()), nh_(NULL), label_(0), proxy_arp_(false),
     tunnel_type_(TunnelType::DefaultType()), wait_for_traffic_(false),
+    evpn_ip_(),
+    local_vm_peer_route_(false),
     flood_(false) {
     boost::system::error_code ec;
     rt_type_ = rt->GetTableType();
@@ -264,13 +268,18 @@ bool RouteKSyncEntry::BuildRouteFlags(const DBEntry *e,
 
 bool RouteKSyncEntry::Sync(DBEntry *e) {
     bool ret = false;
-    const AgentRoute *route;
-  
-    route = static_cast<AgentRoute *>(e);
+    Agent *agent = ksync_obj_->ksync()->agent();
+    const AgentRoute *route = static_cast<AgentRoute *>(e);
+
+    const AgentPath *path = route->GetActivePath();
+    if (path->peer() == agent->local_vm_peer())
+        local_vm_peer_route_ = true;
+    else
+        local_vm_peer_route_ = false;
+
     NHKSyncObject *nh_object = ksync_obj_->ksync()->nh_ksync_obj();
     NHKSyncEntry *old_nh = nh();
 
-    Agent *agent = ksync_obj_->ksync()->agent();
     const NextHop *tmp = NULL;
     tmp = route->GetActiveNextHop();
     if (tmp == NULL) {
@@ -544,7 +553,8 @@ KSyncEntry *RouteKSyncEntry::UnresolvedReference() {
             return KSyncObjectManager::default_defer_entry();
         }
 
-        if (mac_ != MacAddress::BroadcastMac() && addr_.is_unspecified()) {
+        if ((local_vm_peer_route_ == false) &&
+            (mac_ != MacAddress::BroadcastMac() && addr_.is_unspecified())) {
             return KSyncObjectManager::default_defer_entry();
         }
     }

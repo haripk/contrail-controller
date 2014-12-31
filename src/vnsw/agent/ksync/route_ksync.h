@@ -73,6 +73,7 @@ private:
     TunnelType::Type tunnel_type_;
     bool wait_for_traffic_;
     IpAddress evpn_ip_;
+    bool local_vm_peer_route_;
     bool flood_;
     DISALLOW_COPY_AND_ASSIGN(RouteKSyncEntry);
 };
