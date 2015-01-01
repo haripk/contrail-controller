@@ -2994,6 +2994,18 @@ void VmInterface::ServiceVlanRouteAdd(const ServiceVlan &entry) {
     if (ecmp()) {
         path_preference.set_preference(PathPreference::HIGH);
     }
+
+    // With IRB model, add L2 Receive route for SMAC and DMAC to ensure
+    // packets from service vm go thru routing
+    Agent *agent = static_cast<InterfaceTable *>(get_table())->agent();
+    Layer2AgentRouteTable *table = static_cast<Layer2AgentRouteTable *>
+        (vrf_->GetLayer2RouteTable());
+    table->AddLayer2ReceiveRoute(agent->local_vm_peer(), vrf_.get(),
+                                 vn()->GetVxLanId(), entry.dmac_,
+                                 vn()->GetName());
+    table->AddLayer2ReceiveRoute(agent->local_vm_peer(), vrf_.get(),
+                                 vn()->GetVxLanId(), entry.smac_,
+                                 vn()->GetName());
     InetUnicastAgentRouteTable::AddVlanNHRoute
         (peer_.get(), entry.vrf_->GetName(), entry.addr_, 32,
          GetUuid(), entry.tag_, entry.label_, vn()->GetName(), sg_id_list,
@@ -3011,6 +3023,14 @@ void VmInterface::ServiceVlanRouteDel(const ServiceVlan &entry) {
     InetUnicastAgentRouteTable::Delete
         (peer_.get(), entry.vrf_->GetName(), entry.addr_, 32);
 
+    // Delete the L2 Recive routes added for smac_ and dmac_
+    Agent *agent = static_cast<InterfaceTable *>(get_table())->agent();
+    Layer2AgentRouteTable *table = static_cast<Layer2AgentRouteTable *>
+        (entry.vrf_->GetLayer2RouteTable());
+    table->Delete(agent->local_vm_peer(), entry.vrf_->GetName(), entry.dmac_,
+                  IpAddress(), 0);
+    table->Delete(agent->local_vm_peer(), entry.vrf_->GetName(), entry.smac_,
+                  IpAddress(), 0);
     entry.installed_ = false;
     return;
 }

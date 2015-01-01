@@ -195,7 +195,7 @@ void AgentXmppChannel::ReceiveEvpnUpdate(XmlPugi *pugi) {
 
                 // Get MAC address. Its delimited by ","
                 token = strtok_r(buff + offset, ",", &saveptr);
-                if ((strlen(saveptr) != 0) || (token == NULL)) {
+                if ((strlen(saveptr) == 0) || (token == NULL)) {
                     CONTROLLER_TRACE(Trace, GetBgpPeerName(), vrf_name,
                                      "Error parsing MAC from retract-id: " +id);
                     continue;

@@ -118,9 +118,6 @@ bool RouteKSyncEntry::UcIsLess(const KSyncEntry &rhs) const {
 
 bool RouteKSyncEntry::McIsLess(const KSyncEntry &rhs) const {
     const RouteKSyncEntry &entry = static_cast<const RouteKSyncEntry &>(rhs);
-    LOG(DEBUG, "MCastompare " << ToString() << "\n"
-               << rhs.ToString() << "Verdict: " << (addr_ < entry.addr_)); 
- 
     if (vrf_id_ != entry.vrf_id_) {
         return vrf_id_ < entry.vrf_id_;
     }
@@ -164,11 +161,34 @@ bool RouteKSyncEntry::IsLess(const KSyncEntry &rhs) const {
     return McIsLess(rhs);
 }
 
+static std::string RouteTypeToString(Agent::RouteTableType type) {
+    switch (type) {
+    case Agent::INET4_UNICAST:
+        return "INET4_UNICAST";
+        break;
+    case Agent::INET6_UNICAST:
+        return "INET6_UNICAST";
+        break;
+    case Agent::INET4_MULTICAST:
+        return "INET_MULTICAST";
+        break;
+    case Agent::LAYER2:
+        return "EVPN";
+        break;
+    default:
+        break;
+    }
+
+    assert(0);
+    return "";
+}
+
 std::string RouteKSyncEntry::ToString() const {
     std::stringstream s;
     NHKSyncEntry *nexthop;
     nexthop = nh();
 
+    s << "Type : " << RouteTypeToString(rt_type_) << " ";
     const VrfEntry* vrf =
         ksync_obj_->ksync()->agent()->vrf_table()->FindVrfFromId(vrf_id_);
     if (vrf) {
@@ -377,6 +397,7 @@ void RouteKSyncEntry::FillObjectLog(sandesh_op::type type,
     }
 
     info.set_mac(mac_.ToString());
+    info.set_type(RouteTypeToString(rt_type_));
 }
 
 int RouteKSyncEntry::Encode(sandesh_op::type op, uint8_t replace_plen,
