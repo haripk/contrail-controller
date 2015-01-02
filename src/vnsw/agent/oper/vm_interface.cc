@@ -3000,12 +3000,10 @@ void VmInterface::ServiceVlanRouteAdd(const ServiceVlan &entry) {
     Agent *agent = static_cast<InterfaceTable *>(get_table())->agent();
     Layer2AgentRouteTable *table = static_cast<Layer2AgentRouteTable *>
         (vrf_->GetLayer2RouteTable());
-    table->AddLayer2ReceiveRoute(agent->local_vm_peer(), vrf_.get(),
-                                 vn()->GetVxLanId(), entry.dmac_,
-                                 vn()->GetName());
-    table->AddLayer2ReceiveRoute(agent->local_vm_peer(), vrf_.get(),
-                                 vn()->GetVxLanId(), entry.smac_,
-                                 vn()->GetName());
+    table->AddLayer2ReceiveRoute(agent->local_vm_peer(), entry.vrf_.get(),
+                                 0, entry.dmac_, vn()->GetName());
+    table->AddLayer2ReceiveRoute(agent->local_vm_peer(), entry.vrf_.get(),
+                                 0, entry.smac_, vn()->GetName());
     InetUnicastAgentRouteTable::AddVlanNHRoute
         (peer_.get(), entry.vrf_->GetName(), entry.addr_, 32,
          GetUuid(), entry.tag_, entry.label_, vn()->GetName(), sg_id_list,
