@@ -17,7 +17,7 @@
 #include "controller/controller_init.h"
 #include "pkt/pkt_init.h"
 #include "services/services_init.h"
-#include "ksync/ksync_init.h"
+#include "vrouter/ksync/ksync_init.h"
 #include "oper/interface_common.h"
 #include "oper/nexthop.h"
 #include "oper/tunnel_nh.h"
@@ -198,7 +198,7 @@ protected:
     void DeleteRoute(const Peer *peer, const std::string &vrf_name, 
                      const Ip4Address &addr, uint32_t plen) {
         AgentRoute *rt = RouteGet(vrf_name, addr, plen);
-        uint8_t path_count = rt->GetPathList().size();
+        uint32_t path_count = rt->GetPathList().size();
         Agent::GetInstance()->fabric_inet4_unicast_table()->DeleteReq(peer, vrf_name,
                                                                             addr, plen, NULL);
         client->WaitForIdle();
@@ -1679,9 +1679,6 @@ TEST_F(RouteTest, route_arp_flags_1) {
     InetUnicastRouteEntry *rt1 = RouteGet(vrf_name_, subnet_vm_ip_1_, 24);
     InetUnicastRouteEntry *rt2 = RouteGet(vrf_name_, subnet_vm_ip_2_, 28);
     InetUnicastRouteEntry *rt3 = RouteGet(vrf_name_, subnet_vm_ip_3_, 16);
-    //Take out the route ksync object
-    VrfKSyncObject *vrf_ksync_obj = agent_->ksync()->vrf_ksync_obj();
-
     EXPECT_TRUE(rt1 != NULL);
     EXPECT_TRUE(rt2 != NULL);
     EXPECT_TRUE(rt3 != NULL);

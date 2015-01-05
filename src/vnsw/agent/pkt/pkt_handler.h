@@ -270,6 +270,8 @@ public:
 
     PktModuleName ParsePacket(const AgentHdr &hdr, PktInfo *pkt_info,
                               uint8_t *pkt);
+    int ParseUserPkt(PktInfo *pkt_info, Interface *intf,
+                     PktType::Type &pkt_type, uint8_t *pkt);
     // identify pkt type and send to the registered handler
     void HandleRcvPkt(const AgentHdr &hdr, const PacketBufferPtr &buff);
     void SendMessage(PktModuleName mod, InterTaskMsg *msg); 
@@ -313,8 +315,6 @@ private:
     void InterfaceNotify(DBEntryBase *entry);
     int ParseEthernetHeader(PktInfo *pkt_info, uint8_t *pkt);
     int ParseMplsHdr(PktInfo *pkt_info, uint8_t *pkt);
-    int ParseUserPkt(PktInfo *pkt_info, Interface *intf,
-                     PktType::Type &pkt_type, uint8_t *pkt);
     int ParseIpPacket(PktInfo *pkt_info, PktType::Type &pkt_type,
                       uint8_t *ptr);
 

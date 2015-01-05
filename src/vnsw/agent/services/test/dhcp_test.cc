@@ -17,7 +17,7 @@
 #include <controller/controller_vrf_export.h>
 #include <pkt/pkt_init.h>
 #include <services/services_init.h>
-#include <ksync/ksync_init.h>
+#include <vrouter/ksync/ksync_init.h>
 #include <openstack/instance_service_server.h>
 #include <oper/vrf.h>
 #include <pugixml/pugixml.hpp>
@@ -956,6 +956,7 @@ TEST_F(DhcpTest, DhcpZeroIpTest) {
     };
     DhcpProto::DhcpStats stats;
 
+    Agent::GetInstance()->GetDhcpProto()->set_dhcp_relay_mode(true);
     CreateVmportEnv(input, 1, 0, NULL,
                     Agent::GetInstance()->fabric_vrf_name().c_str());
     client->WaitForIdle();
@@ -980,6 +981,7 @@ TEST_F(DhcpTest, DhcpZeroIpTest) {
     client->WaitForIdle();
 
     Agent::GetInstance()->GetDhcpProto()->ClearStats();
+    Agent::GetInstance()->GetDhcpProto()->set_dhcp_relay_mode(false);
 }
 
 TEST_F(DhcpTest, IpamSpecificDhcpOptions) {

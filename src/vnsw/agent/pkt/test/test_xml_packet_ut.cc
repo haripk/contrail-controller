@@ -73,8 +73,8 @@ int main(int argc, char *argv[]) {
     GETUSERARGS();
 
     client = XmlPktParseTestInit(init_file, ksync_init);
-    AgentUve *uve = static_cast<AgentUve *>(client->agent()->uve());
-    uve->flow_stats_collector()->set_expiry_time(1000*1000);
+    client->agent()->flow_stats_collector()->set_expiry_time(1000*1000);
+    client->agent()->flow_stats_collector()->set_delete_short_flow(false);
     usleep(1000);
     client->WaitForIdle();
     int ret = RUN_ALL_TESTS();

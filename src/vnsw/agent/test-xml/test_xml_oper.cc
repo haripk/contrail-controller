@@ -49,6 +49,8 @@ AgentUtXmlValidationNode *CreateValidateNode(const string &type,
 AgentUtXmlNode *CreateNode(const string &type, const string &name,
                            const uuid &id, const xml_node &node,
                            AgentUtXmlTestCase *test_case) {
+    if (type == "global-vrouter-config")
+        return new AgentUtXmlGlobalVrouter(name, id, node, test_case);
     if (type == "virtual-network" || type == "vn")
         return new AgentUtXmlVn(name, id, node, test_case);
     if (type == "virtual-machine" || type == "vm")
@@ -70,6 +72,8 @@ AgentUtXmlNode *CreateNode(const string &type, const string &name,
 }
 
 void AgentUtXmlOperInit(AgentUtXmlTest *test) {
+    test->AddConfigEntry("global-vrouter-config", CreateNode);
+
     test->AddConfigEntry("virtual-network", CreateNode);
     test->AddConfigEntry("vn", CreateNode);
 
@@ -114,6 +118,47 @@ void AgentUtXmlOperInit(AgentUtXmlTest *test) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+//  AgentUtXmlGlobalVrouter routines
+/////////////////////////////////////////////////////////////////////////////
+AgentUtXmlGlobalVrouter::AgentUtXmlGlobalVrouter(const std::string &name,
+                                                 const uuid &id,
+                                                 const xml_node &node,
+                                                 AgentUtXmlTestCase *test_case) :
+    AgentUtXmlConfig(name, id, node, test_case) {
+}
+
+AgentUtXmlGlobalVrouter::~AgentUtXmlGlobalVrouter() {
+}
+
+bool AgentUtXmlGlobalVrouter::ReadXml() {
+    if (AgentUtXmlConfig::ReadXml() == false) {
+        return false;
+    }
+    GetStringAttribute(node(), "vxlan-mode", &vxlan_mode_);
+    return true;
+}
+
+bool AgentUtXmlGlobalVrouter::ToXml(xml_node *parent) {
+    xml_node n = AddXmlNodeWithAttr(parent, NodeType().c_str());
+    AddXmlNodeWithValue(&n, "name", name());
+    if (!vxlan_mode().empty()) {
+        AddXmlNodeWithValue(&n, "vxlan-network-identifier-mode", vxlan_mode());
+    }
+    AddIdPerms(&n);
+    return true;
+}
+
+void AgentUtXmlGlobalVrouter::ToString(string *str) {
+    AgentUtXmlConfig::ToString(str);
+    *str += "\n";
+    return;
+}
+
+string AgentUtXmlGlobalVrouter::NodeType() {
+    return "global-vrouter-config";
+}
+
+/////////////////////////////////////////////////////////////////////////////
 //  AgentUtXmlVn routines
 /////////////////////////////////////////////////////////////////////////////
 AgentUtXmlVn::AgentUtXmlVn(const string &name, const uuid &id,
@@ -127,25 +172,25 @@ AgentUtXmlVn::~AgentUtXmlVn() {
 
 
 bool AgentUtXmlVn::ReadXml() {
-    if (AgentUtXmlConfig::ReadXml() == false)
+    if (AgentUtXmlConfig::ReadXml() == false) {
         return false;
-
-    GetUintAttribute(node(), "vxlan-id", &vxlan_id_);
+    }
+    GetStringAttribute(node(), "vxlan-id", &vxlan_id_);
+    GetStringAttribute(node(), "network-id", &network_id_);
     return true;
 }
 
 bool AgentUtXmlVn::ToXml(xml_node *parent) {
     xml_node n = AddXmlNodeWithAttr(parent, NodeType().c_str());
     AddXmlNodeWithValue(&n, "name", name());
-    if (op_delete() == false) {
-
+    if (!network_id().empty()) {
         xml_node n1 = n.append_child("virtual-network-properties");
-        stringstream s;
-        s << vxlan_id_;
-        AddXmlNodeWithValue(&n1, "vxlan-network-identifier", s.str());
-        AddXmlNodeWithValue(&n1, "network-id", s.str());
+        AddXmlNodeWithValue(&n1, "network-id", network_id());
     }
-
+    if (!vxlan_id().empty() && op_delete() == false) {
+        xml_node n1 = n.append_child("virtual-network-properties");
+        AddXmlNodeWithValue(&n1, "vxlan-network-identifier", vxlan_id());
+    }
     AddIdPerms(&n);
     return true;
 }
