@@ -104,10 +104,10 @@ bool VrfEntry::UpdateVxlanId(Agent *agent, uint32_t new_vxlan_id) {
     }
 
     if (new_vxlan_id != VxLanTable::kInvalidvxlan_id) {
-        table->AddLayer2ReceiveRoute(agent->local_vm_peer(), this, new_vxlan_id,
+        table->AddLayer2ReceiveRoute(agent->local_vm_peer(), name_, new_vxlan_id,
                                      agent->vrrp_mac(), vn_->GetName());
         if (intf) {
-            table->AddLayer2ReceiveRoute(agent->local_vm_peer(), this,
+            table->AddLayer2ReceiveRoute(agent->local_vm_peer(), name_,
                                          new_vxlan_id, intf->mac(),
                                          vn_->GetName());
         }
