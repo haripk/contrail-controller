@@ -457,6 +457,7 @@ bool InetUnicastRouteEntry::EcmpDeletePath(AgentPath *path) {
 
         if (it_path->peer() &&
             it_path->peer()->GetType() == Peer::LOCAL_VM_PORT_PEER &&
+            it_path->path_preference().ecmp() == true &&
             it_path != path)
             count++;
     }
@@ -573,7 +574,8 @@ bool InetUnicastRouteEntry::EcmpAddPath(AgentPath *path) {
             ecmp = it_path;
 
         if (it_path->peer() &&
-            it_path->peer()->GetType() == Peer::LOCAL_VM_PORT_PEER) {
+            it_path->peer()->GetType() == Peer::LOCAL_VM_PORT_PEER &&
+            it_path->path_preference().ecmp() == true) {
             count++;
             if (it_path != path)
                 vm_port_path = it_path;
@@ -716,15 +718,6 @@ const NextHop* InetUnicastRouteEntry::GetLocalNextHop() const {
     return NULL;
 }
 
-bool InetUnicastRouteEntry::is_multicast() const {
-    Agent *agent =
-        (static_cast<InetUnicastAgentRouteTable *> (get_table()))->agent();
-    const AgentPath *path = FindPath(agent->local_peer());
-    if (AgentRoute::is_multicast() || (path && path->is_subnet_discard()))
-        return true;
-    return false;
-}
-
 /////////////////////////////////////////////////////////////////////////////
 // AgentRouteData virtual functions
 /////////////////////////////////////////////////////////////////////////////
@@ -835,6 +828,7 @@ bool InetUnicastRouteEntry::DBEntrySandesh(Sandesh *sresp, bool stale) const {
     data.set_ipam_subnet_route(ipam_subnet_route_);
     data.set_proxy_arp(proxy_arp_);
     data.set_src_vrf(vrf()->GetName());
+    data.set_multicast(AgentRoute::is_multicast());
     for (Route::PathList::const_iterator it = GetPathList().begin();
          it != GetPathList().end(); it++) {
         const AgentPath *path = static_cast<const AgentPath *>(it.operator->());
