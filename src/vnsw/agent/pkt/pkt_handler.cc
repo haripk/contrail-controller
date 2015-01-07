@@ -706,10 +706,6 @@ bool PktHandler::IsManagedTORPacket(Interface *intf, PktInfo *pkt_info,
         return false;
     }
 
-    if (IsToRDevice(pkt_info->agent_hdr.vrf, pkt_info->ip_saddr) == false) {
-        return false;
-    }
-
     if (pkt_type != PktType::UDP || pkt_info->dport != VXLAN_UDP_DEST_PORT)
         return false;
 
@@ -727,6 +723,10 @@ bool PktHandler::IsManagedTORPacket(Interface *intf, PktInfo *pkt_info,
     MacVmBindingSet::iterator it = mac_vm_binding_.find(key);
     if (it == mac_vm_binding_.end())
         return false;
+
+    if (IsToRDevice(it->interface->vrf_id(), pkt_info->ip_saddr) == false) {
+        return false;
+    }
 
     // update agent_hdr to reflect the VM interface data
     // cmd_param is set to physical interface id
