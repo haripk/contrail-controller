@@ -992,16 +992,29 @@ KSyncEntry *NHKSyncEntry::UnresolvedReference() {
     return entry;
 }
 
+static bool NeedRewrite(NHKSyncEntry *entry, InterfaceKSyncEntry *if_ksync) {
+
+    // If interface has RAW-IP encapsulation, it doesnt need any rewrite
+    // information
+    if (if_ksync && if_ksync->encap_type() == PhysicalInterface::RAW_IP) {
+        return false;
+    }
+
+    // For layer2 nexthops, only INTERFACE nexthop has rewrite NH
+    if (entry->is_layer2() == true) {
+        if (entry->type() == NextHop::INTERFACE)
+            return true;
+        return false;
+    }
+
+    return true;
+}
+
 void NHKSyncEntry::SetEncap(InterfaceKSyncEntry *if_ksync,
                             std::vector<int8_t> &encap) {
 
-    if (is_layer2_ == true) {
+    if (NeedRewrite(this, if_ksync) == false)
         return;
-    }
-
-    if (if_ksync && if_ksync->encap_type() == PhysicalInterface::RAW_IP) {
-        return;
-    }
 
     const MacAddress *smac = &MacAddress::ZeroMac();
     /* DMAC encode */

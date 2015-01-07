@@ -28,10 +28,15 @@ public:
                             const IpAddress &ip_addr,
                             uint32_t ethernet_tag,
                             LocalVmRoute *data);
-    void AddLocalVmRoute(const Peer *peer, const VmInterface *intf);
+    void AddLocalVmRoute(const Peer *peer, const std::string &vrf_name,
+                         const MacAddress &mac, const VmInterface *intf,
+                         const IpAddress &ip, uint32_t label,
+                         const std::string &vn_name,
+                         const SecurityGroupList &sg_id_list,
+                         const PathPreference &path_pref);
     void DelLocalVmRoute(const Peer *peer, const std::string &vrf_name,
-                         const VmInterface *intf, const Ip4Address &old_v4_addr,
-                         const Ip6Address &old_v6_addr);
+                         const MacAddress &mac, const VmInterface *intf,
+                         const IpAddress &ip);
     static void AddRemoteVmRouteReq(const Peer *peer,
                                     const std::string &vrf_name,
                                     const MacAddress &mac,

@@ -45,6 +45,7 @@ public:
     void FillObjectLog(sandesh_op::type op, KSyncNhInfo &info) const;
     uint32_t nh_id() const { return nh_id_;}
     void SetEncap(InterfaceKSyncEntry *if_ksync, std::vector<int8_t> &encap);
+    bool is_layer2() const { return is_layer2_; }
 private:
     class KSyncComponentNH {
     public:
