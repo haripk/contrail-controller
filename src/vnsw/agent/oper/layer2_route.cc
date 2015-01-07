@@ -167,6 +167,18 @@ void Layer2AgentRouteTable::AddLayer2ReceiveRoute(const Peer *peer,
     Layer2TableEnqueue(agent, &req);
 }
 
+void Layer2AgentRouteTable::AddLayer2ReceiveRouteReq(const Peer *peer,
+                                                     const string &vrf_name,
+                                                     uint32_t vxlan_id,
+                                                     const MacAddress &mac,
+                                                     const string &vn_name) {
+    DBRequest req(DBRequest::DB_ENTRY_ADD_CHANGE);
+    req.key.reset(new Layer2RouteKey(peer, vrf_name, mac, IpAddress(),
+                                     vxlan_id));
+    req.data.reset(new L2ReceiveRoute(vn_name, vxlan_id));
+    Enqueue(&req);
+}
+
 void Layer2AgentRouteTable::AddLayer2ReceiveRoute(const Peer *peer,
                                                   const string &vrf_name,
                                                   uint32_t vxlan_id,

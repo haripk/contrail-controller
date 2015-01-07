@@ -165,7 +165,9 @@ static bool NhDecode(const NextHop *nh, const PktInfo *pkt, PktFlowInfo *info,
     // Out NH points to Composite. We only expect ECMP Composite-NH
     // Find the out_component_nh_idx
     if (nh->GetType() == NextHop::COMPOSITE) {
-        assert(pkt->l3_forwarding == true);
+        // We dont expect L2 multicast packets. Return failure to drop packet
+        if (pkt->l3_forwarding == true)
+            return false;
         comp_nh = static_cast<const CompositeNH *>(nh);
         if (comp_nh->composite_nh_type() == Composite::ECMP ||
             comp_nh->composite_nh_type() == Composite::LOCAL_ECMP) {

@@ -153,10 +153,10 @@ void ContrailInitCommon::ProcessComputeAddress(AgentParam *param) {
     // to fabric-vrf. VRouter will do FDB lookup for VRRP MAC in this case.
     // Add Layer2 receive NH for vrrp-mac to aid VRouter
     Layer2AgentRouteTable *l2_table = agent()->fabric_l2_unicast_table();
-    l2_table->AddLayer2ReceiveRoute(agent()->local_vm_peer(),
-                                    agent()->fabric_vrf_name(),
-                                    0, agent()->vrrp_mac(),
-                                    agent()->fabric_vn_name());
+    l2_table->AddLayer2ReceiveRouteReq(agent()->local_vm_peer(),
+                                       agent()->fabric_vrf_name(),
+                                       0, agent()->vrrp_mac(),
+                                       agent()->fabric_vn_name());
 }
 
 void ContrailInitCommon::CreateInterfaces() {

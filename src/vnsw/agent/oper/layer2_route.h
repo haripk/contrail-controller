@@ -60,6 +60,9 @@ public:
                                       const std::string &vn_name,
                                       const std::string &interface,
                                       bool policy);
+    void AddLayer2ReceiveRouteReq(const Peer *peer, const std::string &vrf_name,
+                                  uint32_t vxlan_id, const MacAddress &mac,
+                                  const std::string &vn_name);
     void AddLayer2ReceiveRoute(const Peer *peer, const std::string &vrf_name,
                                uint32_t vxlan_id, const MacAddress &mac,
                                const std::string &vn_name);
@@ -114,6 +117,7 @@ public:
     virtual AgentPath *FindPathUsingKey(const AgentRouteKey *key);
 
     const MacAddress &GetAddress() const {return mac_;}
+    const MacAddress &mac() const {return mac_;}
     const IpAddress &ip_addr() const {return ip_addr_;}
     const uint32_t GetVmIpPlen() const;
 
